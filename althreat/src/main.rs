@@ -312,6 +312,7 @@ fn laser_hits(lasers: &mut Vec<Laser>, enemies: &mut Vec<Enemy>) {
 // TODO: Score
 // TODO: Energy
 // TODO: Lives
+// TODO: Animated sprites
 pub fn main() {
     let mut dc = init_dc();
     let mut stars = init_stars(NB_STARS);
