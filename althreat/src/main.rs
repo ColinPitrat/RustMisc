@@ -14,6 +14,7 @@ use sdl2::render::TextureCreator;
 use sdl2::video::Window;
 use sdl2::video::WindowContext;
 use std::cmp::Ordering;
+use std::rc::Rc;
 use std::time::{SystemTime,Duration};
  
 const SCREEN_WIDTH : i32 = 1600;
@@ -63,6 +64,79 @@ impl Rect {
     }
 }
 
+//* The data for an animated sprite
+struct SpriteType<'a> {
+    //* Images composing this animated sprite
+    images: Vec<Texture<'a>>,
+    //* Duration for which each image is displayed
+    delay: Duration,
+    //* Width and height of the sprites (assume they are all equals)
+    width: f64,
+    height: f64,
+}
+
+// TODO: Make a sprite be a directory with a SpriteInfo file containing list of files, delay ...
+impl<'a> SpriteType<'a> {
+    fn from(basename: &str, delay: Duration, texture_creator: &'a TextureCreator<WindowContext>) -> Result<Rc<SpriteType<'a>>, &'static str> {
+        let mut images = vec!();
+
+        let mut i: usize = 1;
+        loop {
+            let file = format!("{}{}.png", basename, i);
+            match texture_creator.load_texture(file) {
+                Ok(img) => images.push(img),
+                // TODO: Differentiate different kinds of errors ?
+                Err(_) => break,
+            }
+            i += 1;
+        }
+        if i == 1 {
+            // TODO: Better error to provide basename
+            return Err("No sprite found")
+        }
+
+        let info = images[0].query();
+
+        Ok(Rc::new(SpriteType{
+            images: images,
+            delay,
+            width: info.width as f64,
+            height: info.height as f64,
+        }))
+    }
+}
+
+//* An animated sprite
+struct Sprite<'a> {
+    //* Shared data for this animated sprite
+    data: Rc<SpriteType<'a>>,
+    //* Index of the current image
+    current: usize,
+    //* Last time the current image changed
+    next_change: SystemTime,
+}
+
+impl<'a> Sprite<'a> {
+    fn from(data: Rc<SpriteType<'a>>) -> Sprite<'a> {
+        Sprite{
+            data: data.clone(),
+            current: random_idx(0, data.images.len()),
+            next_change: SystemTime::now() + data.delay,
+        }
+    }
+
+    fn display(&self, canvas: &mut Canvas<Window>, dest: &Rect) {
+        canvas.copy(&self.data.images[self.current], None, dest).expect("Rendering of sprite failed");
+    }
+
+    fn update(&mut self) {
+        if SystemTime::now() > self.next_change {
+            self.current = (self.current + 1) % self.data.images.len();
+            self.next_change += self.data.delay;
+        }
+    }
+}
+
 struct Star {
     p: Point,
     color: Color,
@@ -73,12 +147,48 @@ struct Player<'a> {
     speed: f64,
     sprite: Texture<'a>,
     last_laser: SystemTime,
+    lives: i32,
+    energy: i32,
+}
+
+impl<'a> Player<'a> {
+    fn new(texture_creator: &TextureCreator<WindowContext>) -> Player {
+        // TODO: (SCREEN_HEIGHT-PLAYER_HEIGHT)/2
+        // TODO: Variable size for player
+        let sprite = texture_creator.load_texture("/home/cpitrat/Perso/RustMisc/althreat/resources/z95.png").unwrap();
+        let speed = 5.0;
+        let player = Player{
+            r: Rect::new(0.0, (SCREEN_HEIGHT/2) as f64, 116.0, 48.0),
+            last_laser: SystemTime::now(),
+            energy: 100,
+            speed, sprite,
+            lives: 3,
+        };
+        player
+    }
+
+    fn partial_init(&mut self) {
+        self.r = Rect::new(0.0, (SCREEN_HEIGHT/2) as f64, 116.0, 48.0);
+        self.last_laser = SystemTime::now();
+        self.energy = 100;
+    }
+
+    fn damage(&mut self, damages: i32) {
+        if self.energy > damages {
+            self.energy -= damages
+        } else {
+            // TODO: This should restart the level
+            self.lives -= 1;
+            self.partial_init();
+        }
+    }
 }
 
 struct Enemy<'a> {
     r: Rect,
     speed: Point,
-    sprite: Texture<'a>,
+    sprite: Sprite<'a>,
+    damages: i32,
 }
 
 struct Laser {
@@ -105,6 +215,10 @@ fn init_dc() -> DrawingContext {
     let canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
     DrawingContext{ sdl_context, canvas, texture_creator }
+}
+
+fn random_idx(min: usize, max: usize) -> usize {
+    rand::thread_rng().gen_range(min as i32, max as i32) as usize
 }
 
 fn random(min: i32, max: i32) -> f64 {
@@ -152,15 +266,6 @@ fn init_stars(nb: u32) -> Vec<Star> {
     stars
 }
 
-fn init_player(texture_creator: &TextureCreator<WindowContext>) -> Player {
-    // TODO: (SCREEN_HEIGHT-PLAYER_HEIGHT)/2
-    // TODO: Variable size for player
-    let r = Rect::new(0.0, (SCREEN_HEIGHT/2) as f64, 116.0, 48.0);
-    let sprite = texture_creator.load_texture("/home/cpitrat/Perso/RustMisc/althreat/resources/z95.png").unwrap();
-    let speed = 5.0;
-    let player = Player{r, speed, sprite, last_laser: SystemTime::now()};
-    player
-}
 
 fn show_stars(canvas: &mut Canvas<Window>, stars: &Vec<Star>) {
         for s in stars.iter() {
@@ -222,15 +327,14 @@ fn player_shoots(player: &mut Player, lasers: &mut Vec<Laser>, pump: &sdl2::Even
 fn init_enemies(texture_creator: &TextureCreator<WindowContext>) -> Vec<Enemy> {
     let mut enemies = vec!();
     let mut i = 0;
+    let sprite_data = SpriteType::from("/home/cpitrat/Perso/RustMisc/althreat/resources/ovni1/ovni", Duration::new(0,100_000_000), texture_creator).unwrap();
     // Number of enemies should depend on stage
     while i < 1000 {
-        // TODO: Variable size for enemies
-        let r = Rect::new(random_pos(), random_y(), 93.0, 41.0);
+        let r = Rect::new(random_pos(), random_y(), sprite_data.width, sprite_data.height);
         // Speed ranges should depend on stage
         let speed = Point::new(random_speed(-5.0, -1.0), random_speed(-2.0, 2.0));
-        // TODO: Animated sprites
-        let sprite = texture_creator.load_texture("/home/cpitrat/Perso/RustMisc/althreat/resources/ovni1/ovni1.png").unwrap();
-        let enemy = Enemy{r, speed, sprite};
+        let sprite = Sprite::from(sprite_data.clone());
+        let enemy = Enemy{r, speed, sprite, damages: 25};
         enemies.push(enemy);
         i += 1;
     }
@@ -243,17 +347,17 @@ fn move_enemies(enemies: &mut Vec<Enemy>) {
         if e.r.p.x > SCREEN_WIDTH as f64 {
             e.r.p.x -= 1.0;
         } else {
-            // TODO: Remove all the ones that are out of the screen ?
             e.r.p.x += e.speed.x;
             e.r.p.y += e.speed.y;
         }
+        e.sprite.update();
     }
+    enemies.retain(|e| e.r.p.x > -e.r.w)
 }
 
 fn show_enemies(canvas: &mut Canvas<Window>, enemies: &Vec<Enemy>) {
     for e in enemies.iter() {
-        // TODO: Size should be part of the sprite somehow
-        canvas.copy(&e.sprite, None, &e.r).expect("Rendering enemy failed");
+        e.sprite.display(canvas, &e.r);
     }
 }
 
@@ -308,17 +412,27 @@ fn laser_hits(lasers: &mut Vec<Laser>, enemies: &mut Vec<Enemy>) {
     }
 }
 
+fn enemy_hits(player: &mut Player, enemies: &mut Vec<Enemy>) {
+    for e in enemies.iter_mut() {
+        if intersect(&player.r, &e.r) {
+            // Funny way to get rid of the enemy
+            // TODO: Enemy should explode instead
+            e.r.p.x = -e.r.w;
+            player.damage(e.damages);
+        }
+    }
+}
+
 // TODO: Stages
 // TODO: Score
 // TODO: Energy
 // TODO: Lives
-// TODO: Animated sprites
 pub fn main() {
     let mut dc = init_dc();
     let mut stars = init_stars(NB_STARS);
-    let mut player = init_player(&dc.texture_creator);
     let mut enemies = init_enemies(&dc.texture_creator);
     let mut lasers = init_lasers();
+    let mut player = Player::new(&dc.texture_creator);
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
     'game_loop: loop {
@@ -333,6 +447,11 @@ pub fn main() {
         move_lasers(&mut lasers);
         player_shoots(&mut player, &mut lasers, &event_pump);
         laser_hits(&mut lasers, &mut enemies);
+        enemy_hits(&mut player, &mut enemies);
+        // TODO: Should gameover
+        if player.lives <= 0 {
+            break 'game_loop
+        }
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} |
