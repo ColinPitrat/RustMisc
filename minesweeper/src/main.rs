@@ -157,6 +157,7 @@ impl Grid {
                         dc.canvas.set_draw_color(light_grey);
                         dc.canvas.fill_rect(sdl2::rect::Rect::new((cell.x * CELL_WIDTH) as i32, (cell.y * CELL_WIDTH) as i32, CELL_WIDTH, CELL_WIDTH)).unwrap();
                     }
+                    // TODO: Use cute pictures for mines & marks
                     if cell.marked {
                         let red = Color::RGB(255, 0, 0);
                         dc.canvas.set_draw_color(red);
@@ -168,6 +169,7 @@ impl Grid {
                         dc.canvas.fill_rect(sdl2::rect::Rect::new((cell.x * CELL_WIDTH + CELL_WIDTH/3) as i32, (cell.y * CELL_WIDTH + CELL_WIDTH/3) as i32, CELL_WIDTH/3, CELL_WIDTH/3)).unwrap();
                     }
                     if cell.neighbours > 0 && cell.revealed && !cell.mine {
+                        // TODO: Different color depending on the number
                         let blue = Color::RGB(0, 0, 255);
                         let nb = font.render(&cell.neighbours.to_string()).solid(blue).unwrap();
                         let nb = dc.texture_creator.create_texture_from_surface(nb).unwrap();
