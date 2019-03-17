@@ -18,6 +18,7 @@ const SCREEN_HEIGHT : u32 = 1000;
 const CELL_WIDTH : u32 = 50;
 const NB_MINES : u32 = 40;
 
+#[derive(PartialEq)]
 enum GamePhase {
     Playing,
     Won,
@@ -163,7 +164,7 @@ impl Grid {
                         dc.canvas.set_draw_color(red);
                         dc.canvas.fill_rect(sdl2::rect::Rect::new((cell.x * CELL_WIDTH) as i32, (cell.y * CELL_WIDTH) as i32, CELL_WIDTH, CELL_WIDTH)).unwrap();
                     }
-                    if cell.mine && cell.revealed {
+                    if cell.mine && (cell.revealed || self.phase == GamePhase::Lost) {
                         let black = Color::RGB(0, 0, 0);
                         dc.canvas.set_draw_color(black);
                         dc.canvas.fill_rect(sdl2::rect::Rect::new((cell.x * CELL_WIDTH + CELL_WIDTH/3) as i32, (cell.y * CELL_WIDTH + CELL_WIDTH/3) as i32, CELL_WIDTH/3, CELL_WIDTH/3)).unwrap();
