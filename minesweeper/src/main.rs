@@ -31,7 +31,7 @@ struct Cell {
     revealed: bool,
     marked: bool,
     mine: bool,
-    neighbours: u32,
+    neighbours: usize,
 }
 
 struct Grid {
@@ -39,6 +39,7 @@ struct Grid {
     width: u32,
     height: u32,
     phase: GamePhase,
+    colors: [Color; 8]
 }
 
 impl Grid {
@@ -48,8 +49,18 @@ impl Grid {
         let mines_pos = Grid::gen_mines_pos(NB_MINES, width, height);
         let mut x = 0;
         let mut cells = vec!();
+        let colors = [
+            Color::RGB(0, 0, 255),
+            Color::RGB(0, 192, 0),
+            Color::RGB(255, 0, 0),
+            Color::RGB(0, 208, 208),
+            Color::RGB(255, 0, 255),
+            Color::RGB(255, 128, 0),
+            Color::RGB(128, 0, 255),
+            Color::RGB(0, 64, 128),
+        ];
         let mut result = Grid {
-            cells: vec!(), width, height, phase: GamePhase::Playing
+            cells: vec!(), width, height, phase: GamePhase::Playing, colors
         };
         while x < width {
             let mut y = 0;
@@ -110,7 +121,7 @@ impl Grid {
         result
     }
 
-    fn count_neighbours(&self, x: u32, y: u32, mines_pos: &Vec<(u32, u32)>) -> u32 {
+    fn count_neighbours(&self, x: u32, y: u32, mines_pos: &Vec<(u32, u32)>) -> usize {
         let mut nb = 0;
         for pos in self.neighbours(x, y) {
             if mines_pos.contains(&pos) {
@@ -170,9 +181,7 @@ impl Grid {
                         dc.canvas.fill_rect(sdl2::rect::Rect::new((cell.x * CELL_WIDTH + CELL_WIDTH/3) as i32, (cell.y * CELL_WIDTH + CELL_WIDTH/3) as i32, CELL_WIDTH/3, CELL_WIDTH/3)).unwrap();
                     }
                     if cell.neighbours > 0 && cell.revealed && !cell.mine {
-                        // TODO: Different color depending on the number
-                        let blue = Color::RGB(0, 0, 255);
-                        let nb = font.render(&cell.neighbours.to_string()).solid(blue).unwrap();
+                        let nb = font.render(&cell.neighbours.to_string()).solid(self.colors[cell.neighbours-1]).unwrap();
                         let nb = dc.texture_creator.create_texture_from_surface(nb).unwrap();
                         dc.canvas.copy(&nb, None, sdl2::rect::Rect::new((cell.x * CELL_WIDTH) as i32, (cell.y * CELL_WIDTH) as i32, CELL_WIDTH, CELL_WIDTH)).expect("Rendering number failed");
                     }
