@@ -35,7 +35,7 @@ struct Cell {
     revealed: bool,
     marked: bool,
     mine: bool,
-    neighbours: i32,
+    neighbours: usize,
 }
 
 impl Cell {
@@ -81,13 +81,23 @@ impl Cell {
 struct Grid {
     cells: Vec<Cell>,
     phase: GamePhase,
+    colors: [Color; 6]
 }
 
 impl Grid {
     fn new() -> Grid {
+        let colors = [
+            Color::RGB(0, 0, 255),
+            Color::RGB(0, 192, 0),
+            Color::RGB(255, 0, 0),
+            Color::RGB(0, 208, 208),
+            Color::RGB(255, 0, 255),
+            Color::RGB(255, 128, 0),
+        ];
         let mut grid = Grid {
             cells: vec!(),
             phase: GamePhase::Playing,
+            colors,
         };
         grid.create_cells();
         grid.place_mines();
@@ -210,8 +220,7 @@ impl Grid {
                     dc.canvas.fill_rect(sdl2::rect::Rect::new((cell.x + 3*CELL_WIDTH/4) as i32, (cell.y + 62*CELL_WIDTH/100) as i32, CELL_WIDTH/2, CELL_WIDTH/2)).unwrap();
                 }
                 if cell.neighbours > 0 && cell.revealed && !cell.mine {
-                    let blue = Color::RGB(0, 0, 255);
-                    let nb = font.render(&cell.neighbours.to_string()).solid(blue).unwrap();
+                    let nb = font.render(&cell.neighbours.to_string()).solid(self.colors[cell.neighbours-1]).unwrap();
                     let nb = dc.texture_creator.create_texture_from_surface(nb).unwrap();
                     dc.canvas.copy(&nb, None, sdl2::rect::Rect::new((cell.x + CELL_WIDTH/2) as i32, (cell.y + 32*CELL_WIDTH/100) as i32, CELL_WIDTH, CELL_WIDTH)).expect("Rendering number failed");
                 }
