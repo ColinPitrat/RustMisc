@@ -294,7 +294,7 @@ fn init_dc() -> DrawingContext {
     let video_subsystem = sdl_context.video().unwrap();
     let _image_context = sdl2::image::init(INIT_PNG).unwrap();
  
-    let window = video_subsystem.window("AlThreat", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
+    let window = video_subsystem.window("Tri-minesweeper", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
         .position_centered()
         .build()
         .unwrap();
