@@ -75,8 +75,7 @@ impl Circle {
     fn new(x: f64, y: f64, t: f64, speed: f64, color: Color, horizontal: bool) -> Circle {
         Circle {
             r: RADIUS,
-            t: t,
-            x, y, speed,
+            t, x, y, speed,
             color,
             horizontal,
         }
@@ -85,16 +84,10 @@ impl Circle {
     fn show(&self, dc: &mut DrawingContext) {
         dc.front_canvas.filled_circle(self.point_x() as i16, self.point_y() as i16, POINT_RADIUS as i16, self.color).unwrap();
         if dc.draw_lines {
-            let mut x1 = 0;
-            let mut x2 = SCREEN_WIDTH as i32;
-            let mut y1 = self.point_y() as i32;
-            let mut y2 = self.point_y() as i32;
-            if self.horizontal {
-                x1 = self.point_x() as i32;
-                x2 = self.point_x() as i32;
-                y1 = 0;
-                y2 = SCREEN_HEIGHT as i32;
-            }
+            let x1 = if self.horizontal { self.point_x() as i32 } else { 0 };
+            let x2 = if self.horizontal { self.point_x() as i32 } else { SCREEN_WIDTH as i32 };
+            let y1 = if self.horizontal { 0 } else { self.point_y() as i32 };
+            let y2 = if self.horizontal { SCREEN_HEIGHT as i32 } else { self.point_y() as i32 };
             dc.front_canvas.draw_line(Point::new(x1, y1), Point::new(x2, y2)).unwrap();
         }
         dc.back_canvas.filled_circle(self.point_x() as i16, self.point_y() as i16, 1 as i16, self.color).unwrap();
@@ -171,7 +164,7 @@ impl Lissajous {
         let y = RADIUS + MARGIN;
         let mut s = SPEED_STEP;
         let mut i = 0;
-        while x + RADIUS + MARGIN <= SCREEN_WIDTH as f64 {
+        while x + RADIUS + MARGIN <= f64::from(SCREEN_WIDTH) {
             circles.push(Circle::new(x, y, delta, s, colors[i], true));
             x += 2.0*RADIUS + MARGIN;
             s += SPEED_STEP;
@@ -192,7 +185,7 @@ impl Lissajous {
         let mut y = 3.0*RADIUS + 2.0*MARGIN;
         let mut s = SPEED_STEP;
         let mut i = 0;
-        while y + RADIUS + MARGIN <= SCREEN_HEIGHT as f64 {
+        while y + RADIUS + MARGIN <= f64::from(SCREEN_HEIGHT) {
             circles.push(Circle::new(x, y, delta, s, colors[i], false));
             y += 2.0*RADIUS + MARGIN;
             s += SPEED_STEP;
