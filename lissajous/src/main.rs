@@ -12,12 +12,13 @@ use sdl2::surface::Surface;
 use sdl2::video::Window;
 use sdl2::video::WindowContext;
 
-const SCREEN_WIDTH : u32 = 1020;
-const SCREEN_HEIGHT : u32 = 1020;
-const RADIUS : f64 = 40.0;
+const SCREEN_WIDTH : u32 = 1360;
+const SCREEN_HEIGHT : u32 = 1360;
+const RADIUS : f64 = 50.0;
 const POINT_RADIUS : f64 = 5.0;
 const MARGIN : f64 = 20.0;
 const SPEED_STEP : f64 = 0.01;
+const DELTA_STEP : f64 = 0.01;
 
 struct DrawingContext<'a> {
     sdl_context: sdl2::Sdl,
@@ -71,10 +72,10 @@ struct Circle {
 }
 
 impl Circle {
-    fn new(x: f64, y: f64, speed: f64, color: Color, horizontal: bool) -> Circle {
+    fn new(x: f64, y: f64, t: f64, speed: f64, color: Color, horizontal: bool) -> Circle {
         Circle {
             r: RADIUS,
-            t: 0.0,
+            t: t,
             x, y, speed,
             color,
             horizontal,
@@ -131,10 +132,10 @@ struct Lissajous {
 }
 
 impl Lissajous {
-    fn new() -> Lissajous {
+    fn new(delta : f64) -> Lissajous {
         Lissajous { 
-            x_circles: Lissajous::init_x_circles(),
-            y_circles: Lissajous::init_y_circles(),
+            x_circles: Lissajous::init_x_circles(delta),
+            y_circles: Lissajous::init_y_circles(0.0),
         }
     }
 
@@ -162,7 +163,7 @@ impl Lissajous {
     }
 
     // TODO: Deduplciate between init_x_circles and init_y_circles
-    fn init_x_circles() -> Vec<Circle> {
+    fn init_x_circles(delta: f64) -> Vec<Circle> {
         let mut circles = vec!();
         let colors = Lissajous::circles_colors();
 
@@ -171,7 +172,7 @@ impl Lissajous {
         let mut s = SPEED_STEP;
         let mut i = 0;
         while x + RADIUS + MARGIN <= SCREEN_WIDTH as f64 {
-            circles.push(Circle::new(x, y, s, colors[i], true));
+            circles.push(Circle::new(x, y, delta, s, colors[i], true));
             x += 2.0*RADIUS + MARGIN;
             s += SPEED_STEP;
             i += 1;
@@ -183,7 +184,7 @@ impl Lissajous {
         circles
     }
 
-    fn init_y_circles() -> Vec<Circle> {
+    fn init_y_circles(delta: f64) -> Vec<Circle> {
         let mut circles = vec!();
         let colors = Lissajous::circles_colors();
 
@@ -192,7 +193,7 @@ impl Lissajous {
         let mut s = SPEED_STEP;
         let mut i = 0;
         while y + RADIUS + MARGIN <= SCREEN_HEIGHT as f64 {
-            circles.push(Circle::new(x, y, s, colors[i], false));
+            circles.push(Circle::new(x, y, delta, s, colors[i], false));
             y += 2.0*RADIUS + MARGIN;
             s += SPEED_STEP;
             i += 1;
@@ -236,7 +237,8 @@ impl Lissajous {
 fn main() {
     let mut dc = DrawingContext::new();
 
-    let mut lissajous = Lissajous::new();
+    let mut delta = 0.0;
+    let mut lissajous = Lissajous::new(delta);
     black_background(&mut dc.back_canvas);
     'game_loop: loop {
         empty_background(&mut dc.front_canvas);
@@ -252,7 +254,19 @@ fn main() {
                     dc.draw_lines = !dc.draw_lines;
                 }
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
-                    lissajous = Lissajous::new();
+                    lissajous = Lissajous::new(delta);
+                    black_background(&mut dc.back_canvas);
+                }
+                Event::KeyDown { keycode: Some(Keycode::P), .. } => {
+                    delta += DELTA_STEP;
+                    println!("Delta = {}", delta);
+                    lissajous = Lissajous::new(delta);
+                    black_background(&mut dc.back_canvas);
+                }
+                Event::KeyDown { keycode: Some(Keycode::M), .. } => {
+                    delta -= DELTA_STEP;
+                    println!("Delta = {}", delta);
+                    lissajous = Lissajous::new(delta);
                     black_background(&mut dc.back_canvas);
                 }
                 _ => {}
