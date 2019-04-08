@@ -98,10 +98,10 @@ impl<'a> SpriteType<'a> {
         let info = images[0].query();
 
         Ok(Rc::new(SpriteType{
-            images: images,
+            images,
             delay,
-            width: info.width as f64,
-            height: info.height as f64,
+            width: f64::from(info.width),
+            height: f64::from(info.height),
         }))
     }
 }
@@ -157,18 +157,17 @@ impl<'a> Player<'a> {
         // TODO: Variable size for player
         let sprite = texture_creator.load_texture("/home/cpitrat/Perso/RustMisc/althreat/resources/z95.png").unwrap();
         let speed = 5.0;
-        let player = Player{
-            r: Rect::new(0.0, (SCREEN_HEIGHT/2) as f64, 116.0, 48.0),
+        Player{
+            r: Rect::new(0.0, f64::from(SCREEN_HEIGHT/2), 116.0, 48.0),
             last_laser: SystemTime::now(),
             energy: 100,
             speed, sprite,
             lives: 3,
-        };
-        player
+        }
     }
 
     fn partial_init(&mut self) {
-        self.r = Rect::new(0.0, (SCREEN_HEIGHT/2) as f64, 116.0, 48.0);
+        self.r = Rect::new(0.0, f64::from(SCREEN_HEIGHT/2), 116.0, 48.0);
         self.last_laser = SystemTime::now();
         self.energy = 100;
     }
@@ -222,11 +221,11 @@ fn random_idx(min: usize, max: usize) -> usize {
 }
 
 fn random(min: i32, max: i32) -> f64 {
-    rand::thread_rng().gen_range(min as i32, max as i32) as f64
+    f64::from(rand::thread_rng().gen_range(min as i32, max as i32))
 }
 
 fn random_speed(min: f64, max: f64) -> f64 {
-    random(1000*min as i32, 1000*max as i32) / 1000 as f64
+    random(1000*min as i32, 1000*max as i32) / f64::from(1000)
 }
 
 fn random_x() -> f64 {
@@ -267,7 +266,7 @@ fn init_stars(nb: u32) -> Vec<Star> {
 }
 
 
-fn show_stars(canvas: &mut Canvas<Window>, stars: &Vec<Star>) {
+fn show_stars(canvas: &mut Canvas<Window>, stars: &[Star]) {
         for s in stars.iter() {
             canvas.set_draw_color(s.color);
             canvas.draw_point(&s.p).expect("Draw point failed !");
@@ -278,7 +277,7 @@ fn move_stars(stars: &mut Vec<Star>) {
     for s in stars.iter_mut() {
         s.p.x -= 1.0;
         if s.p.x < 0.0 {
-            s.p.x = SCREEN_WIDTH as f64;
+            s.p.x = f64::from(SCREEN_WIDTH);
             s.p.y = random_y();
             s.color = random_color();
         }
@@ -299,8 +298,8 @@ fn move_player(player: &mut Player, pump: &sdl2::EventPump) {
     }
     if ks.is_scancode_pressed(Scancode::Down) {
         player.r.p.y += player.speed;
-        if player.r.p.y > (SCREEN_HEIGHT-48) as f64 {
-            player.r.p.y = (SCREEN_HEIGHT-48) as f64;
+        if player.r.p.y > f64::from(SCREEN_HEIGHT-48) {
+            player.r.p.y = f64::from(SCREEN_HEIGHT-48);
         }
     }
     if ks.is_scancode_pressed(Scancode::Left) {
@@ -311,8 +310,8 @@ fn move_player(player: &mut Player, pump: &sdl2::EventPump) {
     }
     if ks.is_scancode_pressed(Scancode::Right) {
         player.r.p.x += player.speed;
-        if player.r.p.x > (SCREEN_WIDTH-116) as f64{
-            player.r.p.x = (SCREEN_WIDTH-116) as f64;
+        if player.r.p.x > f64::from(SCREEN_WIDTH-116){
+            player.r.p.x = f64::from(SCREEN_WIDTH-116);
         }
     }
 }
@@ -344,7 +343,7 @@ fn init_enemies(texture_creator: &TextureCreator<WindowContext>) -> Vec<Enemy> {
 
 fn move_enemies(enemies: &mut Vec<Enemy>) {
     for e in enemies.iter_mut() {
-        if e.r.p.x > SCREEN_WIDTH as f64 {
+        if e.r.p.x > f64::from(SCREEN_WIDTH) {
             e.r.p.x -= 1.0;
         } else {
             e.r.p.x += e.speed.x;
@@ -355,7 +354,7 @@ fn move_enemies(enemies: &mut Vec<Enemy>) {
     enemies.retain(|e| e.r.p.x > -e.r.w)
 }
 
-fn show_enemies(canvas: &mut Canvas<Window>, enemies: &Vec<Enemy>) {
+fn show_enemies(canvas: &mut Canvas<Window>, enemies: &[Enemy]) {
     for e in enemies.iter() {
         e.sprite.display(canvas, &e.r);
     }
@@ -370,7 +369,7 @@ fn move_lasers(lasers: &mut Vec<Laser>) {
         l.r.p.x += l.speed.x;
         l.r.p.y += l.speed.y;
     }
-    lasers.retain(|l| l.r.p.x < SCREEN_WIDTH as f64)
+    lasers.retain(|l| l.r.p.x < f64::from(SCREEN_WIDTH))
 }
 
 fn add_laser(lasers: &mut Vec<Laser>, player: &mut Player) {
@@ -386,7 +385,7 @@ fn add_laser(lasers: &mut Vec<Laser>, player: &mut Player) {
     }
 }
 
-fn show_lasers(canvas: &mut Canvas<Window>, lasers: &Vec<Laser>) {
+fn show_lasers(canvas: &mut Canvas<Window>, lasers: &[Laser]) {
     let blue = Color::RGB(0, 0, 255);
     canvas.set_draw_color(blue);
     for l in lasers.iter() {
@@ -404,7 +403,7 @@ fn laser_hits(lasers: &mut Vec<Laser>, enemies: &mut Vec<Enemy>) {
         for e in enemies.iter_mut() {
             if intersect(&l.r, &e.r) {
                 // Funny way to get rid of the laser & the enemy
-                l.r.p.x = SCREEN_WIDTH as f64;
+                l.r.p.x = f64::from(SCREEN_WIDTH);
                 // TODO: Enemy should explode instead
                 e.r.p.x = -e.r.w;
             }
