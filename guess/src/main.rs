@@ -6,7 +6,7 @@ use std::io;
 
 fn pick_number() -> u32 {
     let mut rng = rand::thread_rng();
-    return rng.gen_range(0, 101);
+    rng.gen_range(0, 101)
 }
 
 fn ask_for_guess() -> u32 {
@@ -57,9 +57,10 @@ fn main() {
 
     loop {
         one_play();
-        match play_again() {
-            true => continue,
-            false => break,
+        if play_again() {
+            continue;
+        } else {
+            break;
         }
     }
 
