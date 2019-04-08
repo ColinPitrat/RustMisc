@@ -40,7 +40,7 @@ struct Cell {
 
 impl Cell {
     fn contains(&self, x: i32, y: i32) -> bool {
-        let s3a = ((3 as f64).sqrt() * (CELL_WIDTH as f64)) as u32;
+        let s3a = (f64::from(3).sqrt() * f64::from(CELL_WIDTH)) as u32;
         // First check bounding rect
         if x < self.x as i32 {
             return false;
@@ -55,26 +55,26 @@ impl Cell {
             return false;
         }
         // Then check corners
-        let dx = (x - self.x as i32) as f64;
-        let dy = (y - self.y as i32) as f64;
-        let s3a = (3 as f64).sqrt() * (CELL_WIDTH as f64);
+        let dx = f64::from(x - self.x as i32);
+        let dy = f64::from(y - self.y as i32);
+        let s3a = f64::from(3).sqrt() * f64::from(CELL_WIDTH);
         // Above y=-sqrt(3)*x + a*sqrt(3)/2 is not this hexagon (top-left corner)
-        if dy + (3 as f64).sqrt()*dx < s3a/2.0 {
+        if dy + f64::from(3).sqrt()*dx < s3a/2.0 {
             return false;
         }
         // Neither is above y=sqrt(3)*x - 3*a*sqrt(3)/2 (top-right corner)
-        if dy - (3 as f64).sqrt()*dx < -3.0*s3a/2.0 {
+        if dy - f64::from(3).sqrt()*dx < -3.0*s3a/2.0 {
             return false;
         }
         // Nor below y=sqrt(3)*x + a*sqrt(3)/2 (bottom-left corner)
-        if dy - (3 as f64).sqrt()*dx > s3a/2.0 {
+        if dy - f64::from(3).sqrt()*dx > s3a/2.0 {
             return false;
         }
         // Nor below y=-sqrt(3)*x + 5*a*sqrt(3)/2 (bottom-right corner)
-        if dy + (3 as f64).sqrt()*dx > 5.0*s3a/2.0 {
+        if dy + f64::from(3).sqrt()*dx > 5.0*s3a/2.0 {
             return false;
         }
-        return true;
+        true
     }
 }
 
@@ -106,7 +106,7 @@ impl Grid {
     }
 
     fn create_cells(&mut self) {
-        let s3a = ((3 as f64).sqrt() * (CELL_WIDTH as f64)) as u32;
+        let s3a = (f64::from(3).sqrt() * f64::from(CELL_WIDTH)) as u32;
         let mut y = 0;
         let mut offset_x = 0;
         let dx = 3*CELL_WIDTH;
@@ -206,13 +206,13 @@ impl Grid {
             // put it in the dc.
             let font = dc.ttf_context.load_font("./resources/DejaVuSans.ttf", 50).unwrap();
             for cell in self.cells.iter() {
-                let mut color = Color::RGB(192, 192, 192);
-                if cell.revealed {
-                    color = Color::RGB(255, 255, 255);
-                }
-                if cell.marked {
-                    color = Color::RGB(255, 0, 0);
-                }
+                let color = if cell.marked {
+                    Color::RGB(255, 0, 0)
+                } else if cell.revealed {
+                    Color::RGB(255, 255, 255)
+                } else {
+                    Color::RGB(192, 192, 192)
+                };
                 draw_hex(dc, cell.x as i16, cell.y as i16, CELL_WIDTH as i16, color);
                 if cell.mine && (cell.revealed || self.phase == GamePhase::Lost) {
                     let black = Color::RGB(0, 0, 0);
@@ -302,7 +302,7 @@ impl Grid {
 }
 
 fn draw_hex(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color) {
-    let s3a = ((3 as f64).sqrt() * (a as f64)) as i16;
+    let s3a = (f64::from(3).sqrt() * f64::from(a)) as i16;
     let xs = [x+a/2, x+3*a/2, x+2*a, x+3*a/2, x+a/2, x];
     let ys = [y, y, y+s3a/2, y+s3a, y+s3a, y+s3a/2];
     dc.canvas.filled_polygon(&xs, &ys, color).unwrap();
@@ -338,8 +338,7 @@ fn init_dc() -> DrawingContext {
 fn centered_rect(inner: &sdl2::rect::Rect, outer: &sdl2::rect::Rect) -> sdl2::rect::Rect {
     let x = (outer.w - inner.w) / 2;
     let y = (outer.h - inner.h) / 2;
-    let result = sdl2::rect::Rect::new(x, y, inner.w as u32, inner.h as u32);
-    result
+    sdl2::rect::Rect::new(x, y, inner.w as u32, inner.h as u32)
 }
 
 fn bounding_rect(r1: &sdl2::rect::Rect, r2: &sdl2::rect::Rect) -> sdl2::rect::Rect {
