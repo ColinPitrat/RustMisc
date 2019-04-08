@@ -260,22 +260,24 @@ struct DrawingContext {
     ttf_context: Sdl2TtfContext,
 }
 
-fn init_dc() -> DrawingContext {
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
-    let _image_context = sdl2::image::init(INIT_PNG).unwrap();
- 
-    let window = video_subsystem.window("Minesweeper", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
-        .position_centered()
-        .build()
-        .unwrap();
- 
-    let canvas = window.into_canvas().build().unwrap();
-    let texture_creator = canvas.texture_creator();
-    
-    let ttf_context = ttf::init().unwrap();
+impl DrawingContext {
+    fn new() -> DrawingContext {
+        let sdl_context = sdl2::init().unwrap();
+        let video_subsystem = sdl_context.video().unwrap();
+        let _image_context = sdl2::image::init(INIT_PNG).unwrap();
 
-    DrawingContext{ sdl_context, canvas, texture_creator, ttf_context }
+        let window = video_subsystem.window("Minesweeper", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
+            .position_centered()
+            .build()
+            .unwrap();
+
+        let canvas = window.into_canvas().build().unwrap();
+        let texture_creator = canvas.texture_creator();
+
+        let ttf_context = ttf::init().unwrap();
+
+        DrawingContext{ sdl_context, canvas, texture_creator, ttf_context }
+    }
 }
 
 fn centered_rect(inner: &sdl2::rect::Rect, outer: &sdl2::rect::Rect) -> sdl2::rect::Rect {
@@ -307,7 +309,7 @@ fn coord_to_pos(x: i32, y: i32) -> (usize, usize) {
 
 // TODO: timer
 fn main() {
-    let mut dc = init_dc();
+    let mut dc = DrawingContext::new();
     let mut grid = Grid::new();
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
