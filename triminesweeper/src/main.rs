@@ -45,7 +45,7 @@ struct Grid {
 
 impl Grid {
     fn new() -> Grid {
-        let as2 = ((CELL_WIDTH as f64) / (2 as f64).sqrt()) as u32;
+        let as2 = (f64::from(CELL_WIDTH) / f64::from(2).sqrt()) as u32;
         let width : u32 = 2*SCREEN_WIDTH / CELL_WIDTH - 1;
         let height : u32 = SCREEN_HEIGHT / as2;
         let mines_pos = Grid::gen_mines_pos(NB_MINES, width, height);
@@ -120,15 +120,13 @@ impl Grid {
             if y+1 < self.height {
                 result.push((x, y+1));
             }
-        } else {
-            if y > 0 {
-                result.push((x, y-1));
-            }
+        } else if y > 0 {
+            result.push((x, y-1));
         }
         result
     }
 
-    fn count_neighbours(&self, x: u32, y: u32, mines_pos: &Vec<(u32, u32)>) -> usize {
+    fn count_neighbours(&self, x: u32, y: u32, mines_pos: &[(u32, u32)]) -> usize {
         let mut nb = 0;
         for pos in self.neighbours(x, y) {
             if mines_pos.contains(&pos) {
@@ -171,22 +169,21 @@ impl Grid {
             let font = dc.ttf_context.load_font("./resources/DejaVuSans.ttf", 50).unwrap();
             for line in self.cells.iter() {
                 for cell in line.iter() {
-                    let mut color = Color::RGB(192, 192, 192);
-                    if cell.revealed {
-                        color = Color::RGB(255, 255, 255);
-                    }
-                    if cell.marked {
-                        color = Color::RGB(255, 0, 0);
-                    }
-                    let as2 = ((CELL_WIDTH as f64) / (2 as f64).sqrt()) as u32;
-                    let mut offset = 0;
-                    if (cell.x + cell.y) % 2 == 0 {
+                    let mut color = if cell.marked {
+                        Color::RGB(255, 0, 0)
+                    } else if cell.revealed {
+                        Color::RGB(255, 255, 255)
+                    } else {
+                        Color::RGB(192, 192, 192)
+                    };
+                    let as2 = (f64::from(CELL_WIDTH) / f64::from(2).sqrt()) as u32;
+                    let offset = if (cell.x + cell.y) % 2 == 0 {
                         draw_up_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, color);
-                        //offset = ((2.0*(2 as f64).sqrt() - 1.0)*(CELL_WIDTH as f64)/8.0) as u32;
-                        offset = CELL_WIDTH/4;
+                        CELL_WIDTH/4
                     } else {
                         draw_down_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, color);
-                    }
+                        0
+                    };
                     // TODO: Use cute pictures for mines & marks
                     if cell.mine && (cell.revealed || self.phase == GamePhase::Lost) {
                         let black = Color::RGB(0, 0, 0);
@@ -265,7 +262,7 @@ impl Grid {
 }
 
 fn draw_up_triangle(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color) {
-    let as2 = ((a as f64) / (2 as f64).sqrt()) as i16;
+    let as2 = (f64::from(a) / f64::from(2).sqrt()) as i16;
     let xs = [x, x+a, x+a/2];
     let ys = [y+as2, y+as2, y];
     dc.canvas.filled_polygon(&xs, &ys, color).unwrap();
@@ -274,7 +271,7 @@ fn draw_up_triangle(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color) {
 }
 
 fn draw_down_triangle(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color) {
-    let as2 = ((a as f64) / (2 as f64).sqrt()) as i16;
+    let as2 = (f64::from(a) / f64::from(2).sqrt()) as i16;
     let xs = [x, x+a, x+a/2];
     let ys = [y, y, y+as2];
     dc.canvas.filled_polygon(&xs, &ys, color).unwrap();
@@ -310,8 +307,7 @@ fn init_dc() -> DrawingContext {
 fn centered_rect(inner: &sdl2::rect::Rect, outer: &sdl2::rect::Rect) -> sdl2::rect::Rect {
     let x = (outer.w - inner.w) / 2;
     let y = (outer.h - inner.h) / 2;
-    let result = sdl2::rect::Rect::new(x, y, inner.w as u32, inner.h as u32);
-    result
+    sdl2::rect::Rect::new(x, y, inner.w as u32, inner.h as u32)
 }
 
 fn bounding_rect(r1: &sdl2::rect::Rect, r2: &sdl2::rect::Rect) -> sdl2::rect::Rect {
@@ -330,7 +326,7 @@ fn grey_background(canvas: &mut Canvas<Window>) {
 
 // TODO: More accurate way to compute coord from mouse pos
 fn coord_to_pos(x: i32, y: i32) -> (usize, usize) {
-    let as2 = ((CELL_WIDTH as f64) / (2 as f64).sqrt()) as u32;
+    let as2 = (f64::from(CELL_WIDTH) / f64::from(2).sqrt()) as u32;
     let i = ((2*x as u32 - CELL_WIDTH/2) / CELL_WIDTH) as usize;
     let j = (y as u32 / as2) as usize;
     (i, j)
