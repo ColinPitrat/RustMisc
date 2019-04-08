@@ -1,0 +1,16 @@
+[package]
+name = "fractal_tree"
+version = "0.1.0"
+authors = ["Colin Pitrat <colin.pitrat@gmail.com>"]
+
+[dependencies]
+rand = "0.5.5"
+rstest = "0.2"
+
+[dependencies.sdl2]
+version = "0.31"
+default-features = false
+features = ["ttf", "image", "gfx"]
+
+[dev-dependencies]
+rstest = "0.2"
