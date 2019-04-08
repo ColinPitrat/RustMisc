@@ -121,7 +121,7 @@ impl Grid {
         result
     }
 
-    fn count_neighbours(&self, x: u32, y: u32, mines_pos: &Vec<(u32, u32)>) -> usize {
+    fn count_neighbours(&self, x: u32, y: u32, mines_pos: &[(u32, u32)]) -> usize {
         let mut nb = 0;
         for pos in self.neighbours(x, y) {
             if mines_pos.contains(&pos) {
@@ -283,8 +283,7 @@ impl DrawingContext {
 fn centered_rect(inner: &sdl2::rect::Rect, outer: &sdl2::rect::Rect) -> sdl2::rect::Rect {
     let x = (outer.w - inner.w) / 2;
     let y = (outer.h - inner.h) / 2;
-    let result = sdl2::rect::Rect::new(x, y, inner.w as u32, inner.h as u32);
-    result
+    sdl2::rect::Rect::new(x, y, inner.w as u32, inner.h as u32)
 }
 
 fn bounding_rect(r1: &sdl2::rect::Rect, r2: &sdl2::rect::Rect) -> sdl2::rect::Rect {
