@@ -1,4 +1,5 @@
 use dc::DrawingContext;
+use leaf::Leaf;
 use point::Point;
 use rand::Rng;
 use sdl2::gfx::primitives::DrawRenderer;
@@ -54,8 +55,17 @@ impl Branch {
         }
     }
 
+    pub fn leaf(&self) -> Vec<Leaf>{
+        if self.child_created {
+            vec!()
+        } else {
+            vec!(Leaf::new(self.end.clone()))
+        }
+    }
+
     pub fn children(&mut self, ratio: f64, angle: f64) -> Vec<Branch>{
-        if self.child_created || (ratio*self.thickness) < 1.0 || self.generation > 13 {
+        // Safeguard: prevent creating more than 12 generations (8k branches)
+        if self.child_created || (ratio*self.thickness) < 1.0 || self.generation > 12 {
             vec!()
         } else {
             vec!(
@@ -93,7 +103,7 @@ mod tests {
                 (Point::new(4.0, 4.0), Point::new(3.0, 4.0), 1.0, 3.141592653589793),
                 );
         for c in cases {
-            let b = Branch::new(c.0.clone(), c.1.clone());
+            let b = Branch::new(c.0.clone(), c.1.clone(), 0.0);
             assert_eq!(b.size, c.2, "Unexpected size between {:?} and {:?}, got {}, expected {}", c.0, c.1, b.size, c.2);
             assert_eq!(b.angle, c.3, "Unexpected angle between {:?} and {:?}, got {}, expected {}", c.0, c.1, b.angle, c.3);
         }
