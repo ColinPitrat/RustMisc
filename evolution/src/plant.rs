@@ -1,13 +1,16 @@
 extern crate rand;
 
+use crate::grid::CellContent;
 use crate::grid::Grid;
+use crate::stats::StatsItem;
 use rand::Rng;
-use sdl2::pixels::Color;
 use std::cmp;
+use std::cell::Cell;
+use std::rc::Rc;
 
-const MAX_LAYERING : u32 = 8;
-const MAX_FERTILITY : u32 = 8;
-const MAX_SPREAD : u32 = 20;
+const MAX_LAYERING : u32 = 4;
+const MAX_FERTILITY : u32 = 3;
+const MAX_SPREAD : u32 = 100;
 
 pub struct Plant {
     x: u32,
@@ -15,27 +18,28 @@ pub struct Plant {
     layering: u32, // Up to how many child will grow next to it
     fertility: u32, // The higher, the more likely it is to disperse seeds and the more it will disperse
     spread: u32, // Up to how far the seeds will disperse
+    keep: Cell<bool>,
 }
 
 pub struct Plants {
-    plants: Vec<Plant>,
+    plants: Vec<Rc<Plant>>,
 }
 
 impl Plant {
     pub fn new(x: u32, y: u32) -> Plant {
-        let layering = rand::thread_rng().gen_range(0, MAX_LAYERING);
-        let fertility = rand::thread_rng().gen_range(0, MAX_FERTILITY);
-        let spread = rand::thread_rng().gen_range(0, MAX_SPREAD);
-        Plant{x, y, layering, fertility, spread}
-    }
-
-    pub fn to_grid(&self, grid: &mut Grid) {
-        let green = Color::RGB(0, 255, 0);
-        grid.set_color(self.x, self.y, green);
+        let layering = rand::thread_rng().gen_range(0, MAX_LAYERING+1);
+        let fertility = rand::thread_rng().gen_range(0, MAX_FERTILITY+1);
+        let spread = rand::thread_rng().gen_range(0, MAX_SPREAD+1);
+        let keep = Cell::new(true);
+        Plant{x, y, layering, fertility, spread, keep}
     }
 
     pub fn layer(&self, x: u32, y: u32) -> Plant {
-        Plant{x, y, layering: self.layering, fertility: self.fertility, spread: self.spread}
+        Plant{x, y, layering: self.layering, fertility: self.fertility, spread: self.spread, keep: Cell::new(true)}
+    }
+
+    pub fn remove(&self) {
+        self.keep.set(false);
     }
 
     pub fn mix_with(&self, partner: &Plant, x: u32, y: u32) -> Plant {
@@ -45,17 +49,17 @@ impl Plant {
         } else {
             partner.layering
         };
-        let fertility = if r % 2 == 0 {
+        let fertility = if (r / 2) % 2 == 0 {
             self.fertility
         } else {
             partner.fertility
         };
-        let spread = if r % 2 == 0 {
+        let spread = if (r / 4) % 2 == 0 {
             self.spread
         } else {
             partner.spread
         };
-        Plant{x, y, layering, fertility, spread}
+        Plant{x, y, layering, fertility, spread, keep: Cell::new(true)}
     }
 }
 
@@ -63,25 +67,12 @@ impl Plants {
     pub fn new(grid: &mut Grid, nb_plants: u32) -> Plants {
         let mut plants = vec!();
         for _ in 0..nb_plants {
-            let (mut x, mut y);
-            loop {
-                x = rand::thread_rng().gen_range(0, grid.width());
-                y = rand::thread_rng().gen_range(0, grid.height());
-                if grid.empty(x, y) {
-                    break;
-                }
-            }
-            let new_plant = Plant::new(x, y);
-            new_plant.to_grid(grid);
+            let (x, y) = grid.get_empty_cell();
+            let new_plant = Rc::new(Plant::new(x, y));
+            grid.set_content(x, y, CellContent::Plant(Rc::clone(&new_plant)));
             plants.push(new_plant);
         }
         Plants{plants}
-    }
-
-    pub fn to_grid(&self, grid: &mut Grid) {
-        for plant in self.plants.iter() {
-            plant.to_grid(grid);
-        }
     }
 
     pub fn layer(&mut self, grid: &mut Grid) {
@@ -101,8 +92,8 @@ impl Plants {
                 let x = x as u32;
                 let y = y as u32;
                 if grid.empty(x, y) {
-                    let new_plant = plant.layer(x, y);
-                    new_plant.to_grid(grid);
+                    let new_plant = Rc::new(plant.layer(x, y));
+                    grid.set_content(x, y, CellContent::Plant(Rc::clone(&new_plant)));
                     to_add.push(new_plant);
                     layers += 1;
                 }
@@ -137,8 +128,8 @@ impl Plants {
                 }
                 let partner_idx = rand::thread_rng().gen_range(0, self.plants.len());
                 let partner = &self.plants[partner_idx];
-                let new_plant = plant.mix_with(partner, new_x, new_y);
-                new_plant.to_grid(grid);
+                let new_plant = Rc::new(plant.mix_with(partner, new_x, new_y));
+                grid.set_content(new_x, new_y, CellContent::Plant(Rc::clone(&new_plant)));
                 to_add.push(new_plant);
             }
         }
@@ -148,5 +139,50 @@ impl Plants {
     pub fn reproduce(&mut self, grid: &mut Grid) {
         self.layer(grid);
         self.spread(grid);
+    }
+
+    pub fn size(&self) -> usize {
+        self.plants.len()
+    }
+
+    //pub fn remove(&mut self, x: u32, y: u32) {
+        //self.plants.retain(|plant| plant.x != x || plant.y != y);
+        //let it = self.plants.iter().position(|p| p.x == x && p.y == y).unwrap();
+        //self.plants.remove(it);
+    //}
+
+    pub fn cleanup(&mut self) {
+        self.plants.retain(|plant| plant.keep.get());
+    }
+
+    /*pub fn consistency_checks(&self) {
+        for (i1, plant1) in self.plants.iter().enumerate() {
+            for (i2, plant2) in self.plants.iter().enumerate() {
+                if i1 != i2 {
+                    assert!(plant1.x != plant2.x || plant1.y != plant2.y);
+                }
+            }
+        }
+    }*/
+
+    pub fn stats(&self, stats: &mut StatsItem) {
+        stats.nb_plants = self.plants.len() as u32;
+        for _ in 0..=MAX_LAYERING {
+            stats.nb_plants_per_layering.push(0);
+        }
+        for _ in 0..=MAX_FERTILITY {
+            stats.nb_plants_per_fertility.push(0);
+        }
+        for _ in 0..=MAX_SPREAD {
+            stats.nb_plants_per_spread.push(0);
+        }
+        for p in self.plants.iter() {
+            stats.nb_plants_per_layering[p.layering as usize] += 1;
+            stats.nb_plants_per_fertility[p.fertility as usize] += 1;
+            stats.nb_plants_per_spread[p.spread as usize] += 1;
+        }
+        assert!(stats.nb_plants_per_layering.iter().sum::<u32>() == stats.nb_plants);
+        assert!(stats.nb_plants_per_fertility.iter().sum::<u32>() == stats.nb_plants);
+        assert!(stats.nb_plants_per_spread.iter().sum::<u32>() == stats.nb_plants);
     }
 }

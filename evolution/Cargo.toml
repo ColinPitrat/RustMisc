@@ -12,3 +12,6 @@ version = "0.31"
 default-features = false
 features = ["ttf", "image", "gfx"]
 
+[profile.release]
+# Set to true for profiling with perf or valgrind
+debug=false

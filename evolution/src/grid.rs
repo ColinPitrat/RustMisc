@@ -1,11 +1,22 @@
 extern crate sdl2;
 
+use crate::animal::Animal;
 use crate::dc::DrawingContext;
+use crate::plant::Plant;
+use rand::Rng;
 use sdl2::pixels::Color;
+use std::rc::Rc;
+
+pub enum CellContent {
+    Empty,
+    Plant(Rc<Plant>),
+    Animal(Rc<Animal>),
+}
 
 pub struct Cell {
     x: u32,
     y: u32,
+    content: CellContent,
     color: Color,
 }
 
@@ -23,7 +34,8 @@ impl Grid {
             let mut cells_row = vec!();
             for y in 0..height {
                 let color = Grid::empty_color();
-                let cell = Cell{x, y, color};
+                let content = CellContent::Empty;
+                let cell = Cell{x, y, content, color};
                 cells_row.push(cell);
             }
             cells.push(cells_row);
@@ -43,13 +55,48 @@ impl Grid {
         Color::RGB(0, 0, 0)
     }
 
-    pub fn empty(&self, x: u32, y: u32) -> bool {
-        // TODO: Cell should have more logic for handling emptiness
-        self.cells[x as usize][y as usize].color == Grid::empty_color()
+    pub fn plant_color() -> Color {
+        Color::RGB(0, 255, 0)
     }
 
-    pub fn set_color(&mut self, x: u32, y: u32, color: Color) {
-        self.cells[x as usize][y as usize].color = color;
+    pub fn animal_color() -> Color {
+        Color::RGB(255, 0, 0)
+    }
+
+    pub fn content_color(content: &CellContent) -> Color {
+        match content {
+            CellContent::Empty => Grid::empty_color(),
+            CellContent::Plant(_) => Grid::plant_color(),
+            CellContent::Animal(_) => Grid::animal_color(),
+        }
+    }
+
+    pub fn empty(&self, x: u32, y: u32) -> bool {
+        match self.cells[x as usize][y as usize].content {
+            CellContent::Empty => true,
+            _ => false,
+        }
+    }
+
+    pub fn at(&self, x: u32, y: u32) -> &CellContent {
+        &self.cells[x as usize][y as usize].content
+    }
+
+    pub fn set_content(&mut self, x: u32, y: u32, content: CellContent) {
+        self.cells[x as usize][y as usize].color = Grid::content_color(&content);
+        self.cells[x as usize][y as usize].content = content;
+    }
+
+    pub fn get_empty_cell(&self) -> (u32, u32) {
+        let (mut x, mut y);
+        loop {
+            x = rand::thread_rng().gen_range(0, self.width());
+            y = rand::thread_rng().gen_range(0, self.height());
+            if self.empty(x, y) {
+                break;
+            }
+        }
+        (x, y)
     }
 
     pub fn show(&self, dc: &mut DrawingContext) {

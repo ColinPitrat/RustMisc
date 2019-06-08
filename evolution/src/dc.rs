@@ -20,7 +20,7 @@ impl DrawingContext {
         let video_subsystem = sdl_context.video().unwrap();
         let _image_context = sdl2::image::init(INIT_PNG).unwrap();
 
-        let window = video_subsystem.window("Fractal tree", width, height)
+        let window = video_subsystem.window("Evolution simulation", width, height)
             .position_centered()
             .build()
             .unwrap();
