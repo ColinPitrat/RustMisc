@@ -58,12 +58,12 @@ impl <T> Graph<T> where
         dc.canvas.fill_rect(sdl2::rect::Rect::new(0, 0, dc.width, dc.height)).unwrap();
         for (c, ds) in self.data.iter().enumerate() {
             println!("Curve {} with {} points", c, ds.len());
-            let dx = (dc.width - 2*MARGIN) / ds.len() as u32;
+            let dx = (dc.width - 2*MARGIN) as f64 / ds.len() as f64;
             dc.canvas.set_draw_color(color[c % color.len()]);
             let mut prev_x = 0;
             let mut prev_y = 0;
             for (i, v) in ds.iter().enumerate() {
-                let x = (MARGIN + i as u32*dx) as i32;
+                let x = (MARGIN as f64 + i as f64*dx) as i32;
                 let y = (MARGIN as f64 + f64::from(max_y-*v)*dy) as i32;
                 println!("Point {} at {}, {} ({})", i, x, y, i32::try_from(*v).unwrap());
                 dc.canvas.fill_rect(sdl2::rect::Rect::new(x-PT_SIZE as i32, y-PT_SIZE as i32, 2*PT_SIZE, 2*PT_SIZE)).unwrap();

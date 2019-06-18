@@ -1,3 +1,4 @@
+extern crate chrono;
 extern crate sdl2;
 
 mod animal;
@@ -8,6 +9,7 @@ mod plant;
 mod stats;
 
 use animal::Animals;
+use chrono::Local;
 use dc::DrawingContext;
 use graph::Graph;
 use grid::{CellContent,Grid};
@@ -16,6 +18,8 @@ use stats::Stats;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use std::fs;
+use std::path::Path;
 
 const SCREEN_WIDTH : u32 = 2000;
 const SCREEN_HEIGHT : u32 = 1400;
@@ -101,8 +105,15 @@ fn graph_data(stats: &Stats) -> Vec<Vec<u32>> {
     result
 }
 
+// TODO: Move all parameters for the model in a model.rs
+// TODO: Support stopping after N generations
+// TODO: Dump curves and stats in a subdirectory for each run. Screenshot at each generation too
+// generate animated GIF?
+// TODO: Loop on various models and compare results
+// TODO: Add predators
 fn main() {
     let mut show_graph = false;
+    let dump_screenshots = true;
     let mut dc = DrawingContext::new(SCREEN_WIDTH, SCREEN_HEIGHT);
     let mut grid = Grid::new(SCREEN_WIDTH/CELL_WIDTH, SCREEN_HEIGHT/CELL_WIDTH, CELL_WIDTH);
     let mut plants = Plants::new(&mut grid, PLANTS_AT_START);
@@ -111,42 +122,49 @@ fn main() {
     let mut graph = Graph::new(graph_data(&stats));
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
+    let run_name = Local::now().format("%Y-%m-%d_%H:%M:%S");
+    if dump_screenshots {
+        let _ = fs::create_dir("results/");  // Can already exist
+        fs::create_dir(format!("results/{}", run_name)).unwrap();
+        fs::create_dir(format!("results/{}/screenshots", run_name)).unwrap();
+    }
     let mut step = 0;
     'game_loop: loop {
+        grid.show(&mut dc);
         if show_graph {
             graph.set_data(graph_data(&stats));
             graph.show(&mut dc);
         } else {
-            grid.show(&mut dc);
+            dc.blit_grid();
         }
 
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} |
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    dump_stats(&stats);
-                    break 'game_loop
-                },
-                Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
-                    step += 1;
-                    animals.update(&mut grid);
-                    plants.cleanup();
-                    if step % STEPS_PER_ROUND == 0 {
-                        plants.reproduce(&mut grid);
-                        animals.finish_round(&mut grid);
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        dump_stats(&stats);
+                        break 'game_loop
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
+                        step += 1;
+                        animals.update(&mut grid);
+                        plants.cleanup();
+                        if step % STEPS_PER_ROUND == 0 {
+                            plants.reproduce(&mut grid);
+                            animals.finish_round(&mut grid);
+                        }
+                        //summary(&animals, &plants);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::G), .. } => {
+                        show_graph = !show_graph;
                     }
-                    //summary(&animals, &plants);
-                },
-                Event::KeyDown { keycode: Some(Keycode::G), .. } => {
-                    show_graph = !show_graph;
-                }
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
                     grid = Grid::new(SCREEN_WIDTH/CELL_WIDTH, SCREEN_HEIGHT/CELL_WIDTH, CELL_WIDTH);
                     plants = Plants::new(&mut grid, PLANTS_AT_START);
                     animals = Animals::new(&mut grid, ANIMALS_AT_START);
                     consistency_checks(&animals, &plants, &grid);
                 },
-                _ => {}
+                    _ => {}
             }
         }
 
@@ -160,6 +178,12 @@ fn main() {
             if step % STEPS_PER_ROUND == 0 {
                 plants.reproduce(&mut grid);
                 animals.finish_round(&mut grid);
+                if dump_screenshots {
+                    // TODO: The following doesn't work. Try to reproduce in a minimal example and open an
+                    // issue to sdl2 on github.
+                    //dc.canvas.window().surface(&event_pump).unwrap().save_bmp(Path::new(&format!("results/{}/screenshots/{:06}.bmp", run_name, step))).unwrap();
+                    dc.save_grid_png(Path::new(&format!("results/{}/screenshots/{:06}.png", run_name, step/STEPS_PER_ROUND)));
+                }
             }
             //summary(&animals, &plants);
         }
