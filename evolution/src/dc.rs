@@ -1,5 +1,6 @@
 use png::HasParameters;
 use sdl2::image::INIT_PNG;
+use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::Canvas;
 use sdl2::render::TextureCreator;
 use sdl2::surface::Surface;
@@ -30,8 +31,8 @@ impl<'a> DrawingContext<'a> {
             .position_centered()
             .build()
             .unwrap();
-        //let grid = Surface::new(width, height, window.window_pixel_format()).unwrap();
-        let grid = Surface::new(width, height, sdl2::pixels::PixelFormatEnum::ABGR8888).unwrap();
+        //let grid = Surface::new(width, height, PixelFormatEnum::ABGR8888).unwrap();
+        let grid = Surface::new(width, height, window.window_pixel_format()).unwrap();
         let grid_canvas = Canvas::from_surface(grid).unwrap();
 
         let canvas = window.into_canvas().build().unwrap();
@@ -50,16 +51,76 @@ impl<'a> DrawingContext<'a> {
         let file = File::create(p).unwrap();
         let ref mut w = BufWriter::new(file);
         let mut encoder = png::Encoder::new(w, self.width, self.height);
-        // TODO: Adapt to the pixel format of the surface
         let grid_surface = self.grid_canvas.surface();
-        println!("Pixel format: {:?}", grid_surface.pixel_format_enum());
-        encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+        let data = grid_surface.without_lock().unwrap();
+        //println!("SDL data size: {}", data.len());
+        //println!("Pixel format: {:?}", grid_surface.pixel_format_enum());
+        let data : Vec<_> = match grid_surface.pixel_format_enum() {
+            PixelFormatEnum::ABGR8888 => {
+                encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+                data.into_iter().cloned().collect()
+            },
+            PixelFormatEnum::RGBA8888 => {
+                encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+                let mut tmp : Vec<_> = data.into_iter().cloned().collect();
+                // Swap red and alpha and green and blue for each pixel
+                (0..self.width*self.height).for_each(|x| {
+                    tmp.swap((x*4) as usize, (x*4+3) as usize);
+                    tmp.swap((x*4+1) as usize, (x*4+2) as usize);
+                });
+                tmp
+            }
+            PixelFormatEnum::ARGB8888 => {
+                encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+                let mut tmp : Vec<_> = data.into_iter().cloned().collect();
+                // Swap red and blue for each pixel
+                (0..self.width*self.height).for_each(|x| tmp.swap((x*4) as usize, (x*4+2) as usize));
+                tmp
+            }
+            PixelFormatEnum::BGRA8888 => {
+                encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+                let mut tmp : Vec<_> = data.into_iter().cloned().collect();
+                // Rotate components from ARGB to RGBA
+                (0..self.width*self.height).for_each(|x| {
+                    tmp.swap((x*4) as usize, (x*4+3) as usize);
+                    tmp.swap((x*4) as usize, (x*4+2) as usize);
+                    tmp.swap((x*4) as usize, (x*4+1) as usize);
+                });
+                tmp
+            }
+            PixelFormatEnum::RGBX8888 => {
+                encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+                // Remove the X part (first u8 of each group of 4)
+                let mut tmp : Vec<_> = data.into_iter().enumerate().filter(|&(i, _)| i%4 != 0).map(|(_, v)| v).cloned().collect();
+                // Swap red and blue for each pixel
+                (0..self.width*self.height).for_each(|x| tmp.swap((x*3) as usize, (x*3+2) as usize));
+                tmp
+            }
+            PixelFormatEnum::BGRX8888 => {
+                encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+                // Remove the X part (first u8 of each group of 4)
+                data.into_iter().enumerate().filter(|&(i, _)| i%4 != 0).map(|(_, v)| v).cloned().collect()
+            }
+            PixelFormatEnum::RGB888 => {
+                encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+                // Remove the padding (last u8 of each group of 4)
+                let mut tmp : Vec<_> = data.into_iter().enumerate().filter(|&(i, _)| i%4 != 3).map(|(_, v)| v).cloned().collect();
+                // Swap red and blue for each pixel
+                (0..self.width*self.height).for_each(|x| tmp.swap((x*3) as usize, (x*3+2) as usize));
+                tmp
+            },
+            PixelFormatEnum::BGR888 => {
+                encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
+                // Remove the padding (last u8 of each group of 4)
+                data.into_iter().enumerate().filter(|&(i, _)| i%4 != 3).map(|(_, v)| v).cloned().collect()
+            },
+            _ => {
+                panic!("Unsupported pixel format: {:?}", grid_surface.pixel_format_enum());
+            }
+        };
         let mut writer = encoder.write_header().unwrap();
-        let data = self.grid_canvas.surface().without_lock().unwrap();
-        //let data : [u8; self.width*self.height*3] = surface_data
-        //println!("Data: {:?}", data);
-        writer.write_image_data(data).unwrap();
-        //panic!("Stop here !");
+        //println!("PNG data size: {}", data.len());
+        writer.write_image_data(&data[..]).unwrap();
     }
 
     pub fn blit_grid(&mut self) {
