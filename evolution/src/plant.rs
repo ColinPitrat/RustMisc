@@ -2,15 +2,12 @@ extern crate rand;
 
 use crate::grid::CellContent;
 use crate::grid::Grid;
+use crate::model::Model;
 use crate::stats::StatsItem;
 use rand::Rng;
 use std::cmp;
 use std::cell::Cell;
 use std::rc::Rc;
-
-const MAX_LAYERING : u32 = 4;
-const MAX_FERTILITY : u32 = 3;
-const MAX_SPREAD : u32 = 100;
 
 pub struct Plant {
     x: u32,
@@ -26,10 +23,10 @@ pub struct Plants {
 }
 
 impl Plant {
-    pub fn new(x: u32, y: u32) -> Plant {
-        let layering = rand::thread_rng().gen_range(0, MAX_LAYERING+1);
-        let fertility = rand::thread_rng().gen_range(0, MAX_FERTILITY+1);
-        let spread = rand::thread_rng().gen_range(0, MAX_SPREAD+1);
+    pub fn new(x: u32, y: u32, model: &Model) -> Plant {
+        let layering = rand::thread_rng().gen_range(0, model.plants_max_layering+1);
+        let fertility = rand::thread_rng().gen_range(0, model.plants_max_fertility+1);
+        let spread = rand::thread_rng().gen_range(0, model.plants_max_spread+1);
         let keep = Cell::new(true);
         Plant{x, y, layering, fertility, spread, keep}
     }
@@ -64,11 +61,11 @@ impl Plant {
 }
 
 impl Plants {
-    pub fn new(grid: &mut Grid, nb_plants: u32) -> Plants {
+    pub fn new(grid: &mut Grid, model: &Model) -> Plants {
         let mut plants = vec!();
-        for _ in 0..nb_plants {
+        for _ in 0..model.plants_at_start {
             let (x, y) = grid.get_empty_cell();
-            let new_plant = Rc::new(Plant::new(x, y));
+            let new_plant = Rc::new(Plant::new(x, y, model));
             grid.set_content(x, y, CellContent::Plant(Rc::clone(&new_plant)));
             plants.push(new_plant);
         }
@@ -102,14 +99,14 @@ impl Plants {
         self.plants.append(&mut to_add);
     }
 
-    pub fn spread(&mut self, grid: &mut Grid) {
+    pub fn spread(&mut self, grid: &mut Grid, model: &Model) {
         let mut to_add = vec!();
         for plant in self.plants.iter() {
             // The plant is not able to reproduce, no matter what
             if plant.fertility == 0 || plant.spread == 0 {
                 continue
             }
-            let threshold = rand::thread_rng().gen_range(0, MAX_FERTILITY);
+            let threshold = rand::thread_rng().gen_range(0, model.plants_max_fertility);
             // The plant is not fertil enough to reproduce this round
             if plant.fertility < threshold {
                 continue
@@ -136,9 +133,9 @@ impl Plants {
         self.plants.append(&mut to_add);
     }
 
-    pub fn reproduce(&mut self, grid: &mut Grid) {
+    pub fn reproduce(&mut self, grid: &mut Grid, model: &Model) {
         self.layer(grid);
-        self.spread(grid);
+        self.spread(grid, model);
     }
 
     pub fn size(&self) -> usize {
@@ -165,15 +162,15 @@ impl Plants {
         }
     }*/
 
-    pub fn stats(&self, stats: &mut StatsItem) {
+    pub fn stats(&self, stats: &mut StatsItem, model: &Model) {
         stats.nb_plants = self.plants.len() as u32;
-        for _ in 0..=MAX_LAYERING {
+        for _ in 0..=model.plants_max_layering {
             stats.nb_plants_per_layering.push(0);
         }
-        for _ in 0..=MAX_FERTILITY {
+        for _ in 0..=model.plants_max_fertility {
             stats.nb_plants_per_fertility.push(0);
         }
-        for _ in 0..=MAX_SPREAD {
+        for _ in 0..=model.plants_max_spread {
             stats.nb_plants_per_spread.push(0);
         }
         for p in self.plants.iter() {

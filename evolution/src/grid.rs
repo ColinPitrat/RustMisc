@@ -102,11 +102,12 @@ impl Grid {
     pub fn show(&self, dc: &mut DrawingContext) {
         for row in self.cells.iter() {
             for cell in row.iter() {
-                let light_grey = Color::RGB(192, 192, 192);
                 dc.grid_canvas.set_draw_color(cell.color);
                 dc.grid_canvas.fill_rect(sdl2::rect::Rect::new((cell.x * self.cell_size) as i32, (cell.y * self.cell_size) as i32, self.cell_size, self.cell_size)).unwrap();
-                dc.grid_canvas.set_draw_color(light_grey);
-                dc.grid_canvas.draw_rect(sdl2::rect::Rect::new((cell.x * self.cell_size) as i32, (cell.y * self.cell_size) as i32, self.cell_size, self.cell_size)).unwrap();
+                // TODO: Draw the grid in a faster way (draw lines instead of squares)
+                //let light_grey = Color::RGB(192, 192, 192);
+                //dc.grid_canvas.set_draw_color(light_grey);
+                //dc.grid_canvas.draw_rect(sdl2::rect::Rect::new((cell.x * self.cell_size) as i32, (cell.y * self.cell_size) as i32, self.cell_size, self.cell_size)).unwrap();
             }
         }
     }

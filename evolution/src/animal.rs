@@ -2,17 +2,12 @@ extern crate rand;
 
 use crate::grid::CellContent;
 use crate::grid::Grid;
+use crate::model::Model;
 use crate::stats::StatsItem;
 use rand::Rng;
 use std::cmp;
 use std::cell::Cell;
 use std::rc::Rc;
-
-const MIN_RANGE : u32 = 1;
-const MAX_RANGE : u32 = 4;
-const MIN_SPEED : u32 = 1;
-const MAX_SPEED : u32 = 4;
-const EAT_TO_MATE : u32 = 3;
 
 pub struct Animal {
     x: Cell<u32>,
@@ -28,9 +23,9 @@ pub struct Animals {
 }
 
 impl Animal {
-    pub fn new(x: u32, y: u32) -> Animal {
-        let range = rand::thread_rng().gen_range(MIN_RANGE, MAX_RANGE+1);
-        let speed = rand::thread_rng().gen_range(MIN_SPEED, MAX_SPEED+1);
+    pub fn new(x: u32, y: u32, model: &Model) -> Animal {
+        let range = rand::thread_rng().gen_range(model.animals_min_range, model.animals_max_range+1);
+        let speed = rand::thread_rng().gen_range(model.animals_min_speed, model.animals_max_speed+1);
         Animal{
             x: Cell::new(x),
             y: Cell::new(y),
@@ -80,7 +75,7 @@ impl Animal {
         self.y.set(y);
     }
 
-    pub fn mix_with(&self, other: &Rc<Animal>, x: u32, y: u32) -> Animal {
+    pub fn mix_with(&self, other: &Rc<Animal>, x: u32, y: u32, model: &Model) -> Animal {
         let r = rand::thread_rng().gen_range(0, 1024);
         let range = if r % 2 == 0 {
             self.range
@@ -97,12 +92,12 @@ impl Animal {
             x: Cell::new(x),
             y: Cell::new(y),
             mated: Cell::new(true),
-            eaten: Cell::new(EAT_TO_MATE),
+            eaten: Cell::new(model.animals_eat_to_mate),
             range, speed
         }
     }
 
-    pub fn reproduce(&self, other: &Rc<Animal>, grid: &Grid) -> Vec<Animal> {
+    pub fn reproduce(&self, other: &Rc<Animal>, grid: &Grid, model: &Model) -> Vec<Animal> {
         self.mated.set(true);
         other.mated.set(true);
         let (mut new_x, mut new_y) = (-1, -1);
@@ -133,12 +128,12 @@ impl Animal {
         let mut result = vec!();
         if new_x >= 0 && new_y >= 0 {
             //println!("New animal at {}, {}", new_x, new_y);
-            result.push(self.mix_with(other, new_x as u32, new_y as u32));
+            result.push(self.mix_with(other, new_x as u32, new_y as u32, model));
         }
         result
     }
 
-    pub fn update(&self, grid: &mut Grid) -> Vec<Rc<Animal>> {
+    pub fn update(&self, grid: &mut Grid, model: &Model) -> Vec<Rc<Animal>> {
         let (mut new_x, mut new_y) = (self.x.get(), self.y.get());
         let mut must_move = false;
         let mut new_animals = vec!();
@@ -158,7 +153,7 @@ impl Animal {
             let move_dx = if dx > 0 { cmp::min(self.speed as i32, dx) } else { cmp::max(-(self.speed as i32), dx) };
             let move_dy = if dy > 0 { cmp::min(self.speed as i32, dy) } else { cmp::max(-(self.speed as i32), dy) };
             let (tx, ty) = (tx as u32, ty as u32);
-            if self.eaten.get() < EAT_TO_MATE {
+            if self.eaten.get() < model.animals_eat_to_mate {
                 if let CellContent::Plant(_) = grid.at(tx, ty) {
                     new_x = ((self.x.get() as i32) + move_dx) as u32;
                     new_y = ((self.y.get() as i32) + move_dy) as u32;
@@ -171,14 +166,14 @@ impl Animal {
                     must_move = true;
                     break;
                 }
-            } else if self.eaten.get() >= EAT_TO_MATE && !self.mated.get() {
+            } else if self.eaten.get() >= model.animals_eat_to_mate && !self.mated.get() {
                 if let CellContent::Animal(other) = grid.at(tx, ty) {
                     if !other.mated.get() {
                         new_x = ((self.x.get() as i32) + move_dx) as u32;
                         new_y = ((self.y.get() as i32) + move_dy) as u32;
                         if new_x == tx && new_y == ty {
                             //println!("    Will mate with animal at {}, {} from {}, {}.", new_x, new_y, self.x.get(), self.y.get());
-                            new_animals = self.reproduce(&other, grid);
+                            new_animals = self.reproduce(&other, grid, model);
                         } else {
                             //println!("    Moving toward animal at {}, {} from {}, {} through {}, {}.", tx, ty, self.x.get(), self.y.get(), new_x, new_y);
                         }
@@ -189,7 +184,7 @@ impl Animal {
             }
             /*
             match grid.at(tx, ty) {
-                CellContent::Plant(_) => if self.eaten.get() < EAT_TO_MATE {
+                CellContent::Plant(_) => if self.eaten.get() < model.animals_eat_to_mate {
                     new_x = ((self.x.get() as i32) + move_dx) as u32;
                     new_y = ((self.y.get() as i32) + move_dy) as u32;
                     if new_x == tx && new_y == ty {
@@ -201,12 +196,12 @@ impl Animal {
                     must_move = true;
                     break;
                 },
-                CellContent::Animal(other) => if self.eaten.get() >= EAT_TO_MATE && !self.mated.get() && !other.mated.get() {
+                CellContent::Animal(other) => if self.eaten.get() >= model.animals_eat_to_mate && !self.mated.get() && !other.mated.get() {
                     new_x = ((self.x.get() as i32) + move_dx) as u32;
                     new_y = ((self.y.get() as i32) + move_dy) as u32;
                     if new_x == tx && new_y == ty {
                         //println!("    Will mate with animal at {}, {} from {}, {}.", new_x, new_y, self.x.get(), self.y.get());
-                        new_animals = self.reproduce(&other, grid);
+                        new_animals = self.reproduce(&other, grid, model);
                     } else {
                         //println!("    Moving toward animal at {}, {} from {}, {} through {}, {}.", tx, ty, self.x.get(), self.y.get(), new_x, new_y);
                     }
@@ -260,28 +255,28 @@ impl Animal {
 
     pub fn survive(&self) -> bool {
         // self.eaten.get() > 0
-        // self.eaten.get() == EAT_TO_MATE
+        // self.eaten.get() == model.animals_eat_to_mate
         self.mated.get()
     }
 
 }
 
 impl Animals {
-    pub fn new(grid: &mut Grid, nb_animals: u32) -> Animals {
+    pub fn new(grid: &mut Grid, model: &Model) -> Animals {
         let mut animals = vec!();
-        for _ in 0..nb_animals {
+        for _ in 0..model.animals_at_start {
             let (x, y) = grid.get_empty_cell();
-            let new_animal = Rc::new(Animal::new(x, y));
+            let new_animal = Rc::new(Animal::new(x, y, model));
             grid.set_content(x, y, CellContent::Animal(Rc::clone(&new_animal)));
             animals.push(new_animal);
         }
         Animals{animals}
     }
 
-    pub fn update(&mut self, grid: &mut Grid) {
+    pub fn update(&mut self, grid: &mut Grid, model: &Model) {
         let mut to_add = vec!();
         for animal in self.animals.iter() {
-            to_add.append(&mut animal.update(grid));
+            to_add.append(&mut animal.update(grid, model));
         }
         self.animals.append(&mut to_add);
     }
@@ -316,12 +311,12 @@ impl Animals {
         }
     }*/
 
-    pub fn stats(&self, stats: &mut StatsItem) {
+    pub fn stats(&self, stats: &mut StatsItem, model: &Model) {
         stats.nb_animals = self.animals.len() as u32;
-        for _ in 0..=MAX_RANGE {
+        for _ in 0..=model.animals_max_range {
             stats.nb_animals_per_range.push(0);
         }
-        for _ in 0..=MAX_SPEED {
+        for _ in 0..=model.animals_max_speed {
             stats.nb_animals_per_speed.push(0);
         }
         for a in self.animals.iter() {

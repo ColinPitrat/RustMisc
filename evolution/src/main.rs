@@ -5,6 +5,7 @@ mod animal;
 mod dc;
 mod graph;
 mod grid;
+mod model;
 mod plant;
 mod stats;
 
@@ -13,6 +14,7 @@ use chrono::Local;
 use dc::DrawingContext;
 use graph::Graph;
 use grid::{CellContent,Grid};
+use model::Model;
 use plant::Plants;
 use stats::Stats;
 
@@ -20,13 +22,6 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::fs;
 use std::path::Path;
-
-const SCREEN_WIDTH : u32 = 2000;
-const SCREEN_HEIGHT : u32 = 1400;
-const CELL_WIDTH : u32 = 5;
-const PLANTS_AT_START : u32 = 4000;
-const ANIMALS_AT_START : u32 = 800;
-const STEPS_PER_ROUND : u32 = 5;
 
 fn consistency_checks(animals: &Animals, plants: &Plants, grid: &Grid) {
     let mut nb_animals : u32 = 0;
@@ -105,19 +100,20 @@ fn graph_data(stats: &Stats) -> Vec<Vec<u32>> {
     result
 }
 
-// TODO: Move all parameters for the model in a model.rs
+// TODO: Load model from file (passed as argument)
 // TODO: Support stopping after N generations
 // TODO: Dump curves and stats in a subdirectory for each run. Screenshot at each generation too
 // generate animated GIF?
 // TODO: Loop on various models and compare results
 // TODO: Add predators
 fn main() {
+    let model = Model::new();
     let mut show_graph = false;
-    let dump_screenshots = true;
-    let mut dc = DrawingContext::new(SCREEN_WIDTH, SCREEN_HEIGHT);
-    let mut grid = Grid::new(SCREEN_WIDTH/CELL_WIDTH, SCREEN_HEIGHT/CELL_WIDTH, CELL_WIDTH);
-    let mut plants = Plants::new(&mut grid, PLANTS_AT_START);
-    let mut animals = Animals::new(&mut grid, ANIMALS_AT_START);
+    let dump_screenshots = false;
+    let mut dc = DrawingContext::new(model.screen_width, model.screen_height);
+    let mut grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
+    let mut plants = Plants::new(&mut grid, &model);
+    let mut animals = Animals::new(&mut grid, &model);
     let mut stats = Stats::new();
     let mut graph = Graph::new(graph_data(&stats));
 
@@ -147,10 +143,10 @@ fn main() {
                     },
                     Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
                         step += 1;
-                        animals.update(&mut grid);
+                        animals.update(&mut grid, &model);
                         plants.cleanup();
-                        if step % STEPS_PER_ROUND == 0 {
-                            plants.reproduce(&mut grid);
+                        if step % model.steps_per_round == 0 {
+                            plants.reproduce(&mut grid, &model);
                             animals.finish_round(&mut grid);
                         }
                         //summary(&animals, &plants);
@@ -159,9 +155,9 @@ fn main() {
                         show_graph = !show_graph;
                     }
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
-                    grid = Grid::new(SCREEN_WIDTH/CELL_WIDTH, SCREEN_HEIGHT/CELL_WIDTH, CELL_WIDTH);
-                    plants = Plants::new(&mut grid, PLANTS_AT_START);
-                    animals = Animals::new(&mut grid, ANIMALS_AT_START);
+                    grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
+                    plants = Plants::new(&mut grid, &model);
+                    animals = Animals::new(&mut grid, &model);
                     consistency_checks(&animals, &plants, &grid);
                 },
                     _ => {}
@@ -169,20 +165,20 @@ fn main() {
         }
 
         {
-            if step % STEPS_PER_ROUND == 0 {
-                stats.update(&animals, &plants);
+            if step % model.steps_per_round == 0 {
+                stats.update(&animals, &plants, &model);
             }
             step += 1;
-            animals.update(&mut grid);
+            animals.update(&mut grid, &model);
             plants.cleanup();
-            if step % STEPS_PER_ROUND == 0 {
-                plants.reproduce(&mut grid);
+            if step % model.steps_per_round == 0 {
+                plants.reproduce(&mut grid, &model);
                 animals.finish_round(&mut grid);
                 if dump_screenshots {
                     // TODO: The following doesn't work. Try to reproduce in a minimal example and open an
                     // issue to sdl2 on github.
                     //dc.canvas.window().surface(&event_pump).unwrap().save_bmp(Path::new(&format!("results/{}/screenshots/{:06}.bmp", run_name, step))).unwrap();
-                    dc.save_grid_png(Path::new(&format!("results/{}/screenshots/{:06}.png", run_name, step/STEPS_PER_ROUND)));
+                    dc.save_grid_png(Path::new(&format!("results/{}/screenshots/{:06}.png", run_name, step/model.steps_per_round)));
                 }
             }
             //summary(&animals, &plants);

@@ -1,4 +1,5 @@
 use crate::animal::Animals;
+use crate::model::Model;
 use crate::plant::Plants;
 
 pub struct StatsItem {
@@ -25,10 +26,10 @@ impl StatsItem {
         }
     }
 
-    pub fn new(animals: &Animals, plants: &Plants) -> StatsItem {
+    pub fn new(animals: &Animals, plants: &Plants, model: &Model) -> StatsItem {
         let mut stats = StatsItem::empty();
-        plants.stats(&mut stats);
-        animals.stats(&mut stats);
+        plants.stats(&mut stats, model);
+        animals.stats(&mut stats, model);
         stats
     }
 }
@@ -44,8 +45,8 @@ impl Stats {
         }
     }
 
-    pub fn update(&mut self, animals: &Animals, plants: &Plants) {
-        self.stats.push(StatsItem::new(animals, plants));
+    pub fn update(&mut self, animals: &Animals, plants: &Plants, model: &Model) {
+        self.stats.push(StatsItem::new(animals, plants, model));
     }
 }
 
