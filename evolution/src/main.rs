@@ -1,4 +1,5 @@
 extern crate chrono;
+extern crate clap;
 extern crate sdl2;
 
 mod animal;
@@ -11,6 +12,7 @@ mod stats;
 
 use animal::Animals;
 use chrono::Local;
+use clap::{Arg,App};
 use dc::DrawingContext;
 use graph::Graph;
 use grid::{CellContent,Grid};
@@ -100,14 +102,29 @@ fn graph_data(stats: &Stats) -> Vec<Vec<u32>> {
     result
 }
 
-// TODO: Load model from file (passed as argument)
+// TODO: Dump stats in results directory before exiting
 // TODO: Support stopping after N generations
 // TODO: Dump curves and stats in a subdirectory for each run. Screenshot at each generation too
 // generate animated GIF?
 // TODO: Loop on various models and compare results
 // TODO: Add predators
 fn main() {
-    let model = Model::new();
+    let matches = App::new("Evolution")
+        .version("0.1")
+        .author("Colin Pitrat")
+        .about("Simulates evolution.")
+        .arg(Arg::with_name("model")
+                .short("m")
+                .long("model")
+                .value_name("FILE")
+                .help("Defines which model to use.")
+                .takes_value(true))
+        .get_matches();
+    let model = matches.value_of("model");
+    let model = match model {
+        None => Model::new(),
+        Some(filename) => Model::load(Path::new(filename)),
+    };
     let mut show_graph = false;
     let dump_screenshots = false;
     let mut dc = DrawingContext::new(model.screen_width, model.screen_height);
@@ -119,9 +136,10 @@ fn main() {
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
     let run_name = Local::now().format("%Y-%m-%d_%H:%M:%S");
+    let _ = fs::create_dir("results/");  // Can already exist
+    fs::create_dir(format!("results/{}", run_name)).unwrap();
+    model.save(Path::new(&format!("results/{}/model.json", run_name)));
     if dump_screenshots {
-        let _ = fs::create_dir("results/");  // Can already exist
-        fs::create_dir(format!("results/{}", run_name)).unwrap();
         fs::create_dir(format!("results/{}/screenshots", run_name)).unwrap();
     }
     let mut step = 0;

@@ -1,3 +1,8 @@
+use serde::{Serialize,Deserialize};
+use std::fs;
+use std::path::Path;
+
+#[derive(Serialize, Deserialize)]
 pub struct Model {
     pub screen_width : u32,
     pub screen_height : u32,
@@ -37,6 +42,14 @@ impl Model {
             animals_max_range: 4,
             animals_eat_to_mate: 3,
         }
+    }
+
+    pub fn load(path: &Path) -> Model {
+        serde_json::from_str(&fs::read_to_string(path).expect(&format!("Unable to read file {:?}.", path))).unwrap()
+    }
+
+    pub fn save(&self, path: &Path) {
+        fs::write(path, serde_json::to_string(&self).unwrap()).expect(&format!("Unable to write file {:?}.", path));
     }
 
     pub fn grid_width(&self) -> u32 {
