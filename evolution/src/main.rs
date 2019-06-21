@@ -23,6 +23,8 @@ use stats::Stats;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::fs;
+use std::fs::File;
+use std::io::prelude::*;
 use std::path::Path;
 
 fn consistency_checks(animals: &Animals, plants: &Plants, grid: &Grid) {
@@ -52,7 +54,8 @@ fn consistency_checks(animals: &Animals, plants: &Plants, grid: &Grid) {
     println!("{} plants - {} animals", plants.size(), animals.size());
 }*/
 
-fn dump_stats(stats: &Stats) {
+fn dump_stats(stats: &Stats, path: &Path) {
+    let mut file = File::create(path).unwrap();
     let mut header = String::from("plants");
     for l in 0..stats.stats[0].nb_plants_per_layering.len() {
         header += &format!(",layering={}", l);
@@ -70,7 +73,8 @@ fn dump_stats(stats: &Stats) {
     for s in 0..stats.stats[0].nb_animals_per_speed.len() {
         header += &format!(",speed={}", s);
     }
-    println!("{}", header);
+    header += "\n";
+    file.write_all(header.as_bytes()).unwrap();
     for si in stats.stats.iter() {
         let mut line = format!("{}", si.nb_plants);
         for l in si.nb_plants_per_layering.iter() {
@@ -89,7 +93,8 @@ fn dump_stats(stats: &Stats) {
         for s in si.nb_animals_per_speed.iter() {
             line += &format!(",{}", s);
         }
-        println!("{}", &line);
+        line += "\n";
+        file.write_all(line.as_bytes()).unwrap();
     }
 }
 
@@ -102,7 +107,6 @@ fn graph_data(stats: &Stats) -> Vec<Vec<u32>> {
     result
 }
 
-// TODO: Dump stats in results directory before exiting
 // TODO: Support stopping after N generations
 // TODO: Dump curves and stats in a subdirectory for each run. Screenshot at each generation too
 // generate animated GIF?
@@ -135,12 +139,17 @@ fn main() {
     let mut graph = Graph::new(graph_data(&stats));
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
+
     let run_name = Local::now().format("%Y-%m-%d_%H:%M:%S");
     let _ = fs::create_dir("results/");  // Can already exist
-    fs::create_dir(format!("results/{}", run_name)).unwrap();
-    model.save(Path::new(&format!("results/{}/model.json", run_name)));
+    let results_dir = format!("results/{}", run_name);
+    fs::create_dir(&results_dir).unwrap();
+    let result_path = |filename: &str| -> String {
+        format!("{}/{}", results_dir, filename)
+    };
+    model.save(Path::new(&result_path("model.json")));
     if dump_screenshots {
-        fs::create_dir(format!("results/{}/screenshots", run_name)).unwrap();
+        fs::create_dir(Path::new(&result_path("screenshots"))).unwrap();
     }
     let mut step = 0;
     'game_loop: loop {
@@ -156,7 +165,7 @@ fn main() {
             match event {
                 Event::Quit {..} |
                     Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        dump_stats(&stats);
+                        dump_stats(&stats, Path::new(&result_path("stats.csv")));
                         break 'game_loop
                     },
                     Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
@@ -195,8 +204,8 @@ fn main() {
                 if dump_screenshots {
                     // TODO: The following doesn't work. Try to reproduce in a minimal example and open an
                     // issue to sdl2 on github.
-                    //dc.canvas.window().surface(&event_pump).unwrap().save_bmp(Path::new(&format!("results/{}/screenshots/{:06}.bmp", run_name, step))).unwrap();
-                    dc.save_grid_png(Path::new(&format!("results/{}/screenshots/{:06}.png", run_name, step/model.steps_per_round)));
+                    //dc.canvas.window().surface(&event_pump).unwrap().save_bmp(Path::new(&result_path(&format!("screenshots/{:06}.bmp", step)))).unwrap();
+                    dc.save_grid_png(Path::new(&result_path(&format!("screenshots/{:06}.png", step/model.steps_per_round))));
                 }
             }
             //summary(&animals, &plants);
