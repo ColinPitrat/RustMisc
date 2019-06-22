@@ -123,11 +123,22 @@ fn main() {
                 .value_name("FILE")
                 .help("Defines which model to use.")
                 .takes_value(true))
+        .arg(Arg::with_name("rounds")
+                .short("r")
+                .long("rounds")
+                .value_name("NUMBER")
+                .help("If provided, stop automatically after this number of rounds.")
+                .takes_value(true))
         .get_matches();
-    let model = matches.value_of("model");
-    let model = match model {
+    let model = match matches.value_of("model") {
         None => Model::new(),
         Some(filename) => Model::load(Path::new(filename)),
+    };
+    let max_rounds = match matches.value_of("rounds") {
+        None => std::u32::MAX,
+        // TODO: The message from expect is not great, better handling would be nice.
+        // Unfortunately, support of types in clap is not great ...
+        Some(num) => num.parse::<u32>().expect(&format!("Number of rounds must be an integer, got '{}'", num)),
     };
     let mut show_graph = false;
     let dump_screenshots = false;
@@ -163,31 +174,29 @@ fn main() {
 
         for event in event_pump.poll_iter() {
             match event {
-                Event::Quit {..} |
-                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                        dump_stats(&stats, Path::new(&result_path("stats.csv")));
-                        break 'game_loop
-                    },
-                    Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
-                        step += 1;
-                        animals.update(&mut grid, &model);
-                        plants.cleanup();
-                        if step % model.steps_per_round == 0 {
-                            plants.reproduce(&mut grid, &model);
-                            animals.finish_round(&mut grid);
-                        }
-                        //summary(&animals, &plants);
-                    },
-                    Event::KeyDown { keycode: Some(Keycode::G), .. } => {
-                        show_graph = !show_graph;
+                Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                    break 'game_loop;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
+                    step += 1;
+                    animals.update(&mut grid, &model);
+                    plants.cleanup();
+                    if step % model.steps_per_round == 0 {
+                        plants.reproduce(&mut grid, &model);
+                        animals.finish_round(&mut grid);
                     }
+                    //summary(&animals, &plants);
+                },
+                Event::KeyDown { keycode: Some(Keycode::G), .. } => {
+                    show_graph = !show_graph;
+                },
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
                     grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
                     plants = Plants::new(&mut grid, &model);
                     animals = Animals::new(&mut grid, &model);
                     consistency_checks(&animals, &plants, &grid);
                 },
-                    _ => {}
+                _ => {},
             }
         }
 
@@ -212,5 +221,11 @@ fn main() {
         }
 
         dc.canvas.present();
+
+        if step/model.steps_per_round >= max_rounds {
+            break 'game_loop;
+        }
     }
+
+    dump_stats(&stats, Path::new(&result_path("stats.csv")));
 }
