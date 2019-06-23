@@ -43,6 +43,7 @@ impl<'a> DrawingContext<'a> {
         DrawingContext{ width, height, sdl_context, grid_canvas, canvas, texture_creator, ttf_context }
     }
 
+    #[allow(dead_code)]
     pub fn save_grid_bmp(&self, p: &Path) {
         self.grid_canvas.surface().save_bmp(p).unwrap();
     }

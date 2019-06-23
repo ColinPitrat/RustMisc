@@ -301,7 +301,9 @@ impl Animals {
         self.animals.len()
     }
 
-    /*pub fn consistency_checks(&self) {
+    // This method is for debugging only, no need to alert for dead code.
+    #[allow(dead_code)]
+    pub fn consistency_checks(&self) {
         for (i1, animal1) in self.animals.iter().enumerate() {
             for (i2, animal2) in self.animals.iter().enumerate() {
                 if i1 != i2 {
@@ -309,7 +311,7 @@ impl Animals {
                 }
             }
         }
-    }*/
+    }
 
     pub fn stats(&self, stats: &mut StatsItem, model: &Model) {
         stats.nb_animals = self.animals.len() as u32;

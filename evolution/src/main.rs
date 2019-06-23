@@ -25,8 +25,12 @@ use sdl2::keyboard::Keycode;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
+use std::str::FromStr;
+use std::string::ToString;
 use std::path::Path;
 
+// This method is for debugging only, no need to alert for dead code.
+#[allow(dead_code)]
 fn consistency_checks(animals: &Animals, plants: &Plants, grid: &Grid) {
     let mut nb_animals : u32 = 0;
     let mut nb_plants : u32 = 0;
@@ -40,8 +44,8 @@ fn consistency_checks(animals: &Animals, plants: &Plants, grid: &Grid) {
             }
         }
     }
-    //plants.consistency_checks();
-    //animals.consistency_checks();
+    plants.consistency_checks();
+    animals.consistency_checks();
     println!("{} plants in the grid, {} plants in the list", nb_plants, plants.size() as u32);
     println!("{} animals in the grid, {} animals in the list", nb_animals, animals.size() as u32);
     println!("{} cells in the grid, {} cells checked", grid.width()*grid.height(), nb_empty+nb_animals+nb_plants);
@@ -49,10 +53,6 @@ fn consistency_checks(animals: &Animals, plants: &Plants, grid: &Grid) {
     assert!(plants.size() as u32 == nb_plants);
     assert!((grid.width()*grid.height()) == nb_empty + nb_animals + nb_plants);
 }
-
-/*fn summary(animals: &Animals, plants: &Plants) {
-    println!("{} plants - {} animals", plants.size(), animals.size());
-}*/
 
 fn dump_stats(stats: &Stats, path: &Path) {
     let mut file = File::create(path).unwrap();
@@ -107,9 +107,17 @@ fn graph_data(stats: &Stats) -> Vec<Vec<u32>> {
     result
 }
 
-// TODO: Support stopping after N generations
-// TODO: Dump curves and stats in a subdirectory for each run. Screenshot at each generation too
-// generate animated GIF?
+fn is_type<T: FromStr>(val: String) -> Result<(), String>
+where <T as std::str::FromStr>::Err : std::string::ToString
+{
+    match val.parse::<T>() {
+        Ok(_) => Ok(()),
+        Err(m) => Err(m.to_string()),
+    }
+}
+
+// TODO: Curves for population per trait.
+// TODO: Dump curves in result subdirectory for each run.
 // TODO: Loop on various models and compare results
 // TODO: Add predators
 fn main() {
@@ -128,7 +136,8 @@ fn main() {
                 .long("rounds")
                 .value_name("NUMBER")
                 .help("If provided, stop automatically after this number of rounds.")
-                .takes_value(true))
+                .takes_value(true)
+                .validator(is_type::<u32>))
         .get_matches();
     let model = match matches.value_of("model") {
         None => Model::new(),
@@ -138,7 +147,7 @@ fn main() {
         None => std::u32::MAX,
         // TODO: The message from expect is not great, better handling would be nice.
         // Unfortunately, support of types in clap is not great ...
-        Some(num) => num.parse::<u32>().expect(&format!("Number of rounds must be an integer, got '{}'", num)),
+        Some(num) => num.parse::<u32>().unwrap(),
     };
     let mut show_graph = false;
     let dump_screenshots = false;
@@ -185,7 +194,6 @@ fn main() {
                         plants.reproduce(&mut grid, &model);
                         animals.finish_round(&mut grid);
                     }
-                    //summary(&animals, &plants);
                 },
                 Event::KeyDown { keycode: Some(Keycode::G), .. } => {
                     show_graph = !show_graph;
@@ -194,7 +202,6 @@ fn main() {
                     grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
                     plants = Plants::new(&mut grid, &model);
                     animals = Animals::new(&mut grid, &model);
-                    consistency_checks(&animals, &plants, &grid);
                 },
                 _ => {},
             }
@@ -217,7 +224,6 @@ fn main() {
                     dc.save_grid_png(Path::new(&result_path(&format!("screenshots/{:06}.png", step/model.steps_per_round))));
                 }
             }
-            //summary(&animals, &plants);
         }
 
         dc.canvas.present();
