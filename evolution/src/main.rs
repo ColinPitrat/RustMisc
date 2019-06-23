@@ -101,6 +101,17 @@ fn dump_stats(stats: &Stats, path: &Path) {
     }
 }
 
+fn dump_graphs(dc: &mut DrawingContext, stats: &Stats, model: &Model, dir: String) {
+    for graph_kind in GraphKind::all() {
+        let graph = Graph::new(
+                graph_title(&graph_kind),
+                graph_legend(&model, &graph_kind),
+                graph_data(&stats, &model, &graph_kind));
+        graph.show(dc);
+        dc.save_graph_png(Path::new(&format!("{}/{}.png", dir, graph_title(&graph_kind))));
+    }
+}
+
 #[derive(Copy, Clone, num_derive::FromPrimitive)]
 enum GraphKind {
     GlobalPopulations,
@@ -117,6 +128,17 @@ impl GraphKind {
             Some(k) => k,
             None => FromPrimitive::from_u8(0).unwrap(),
         }
+    }
+
+    fn all() -> Vec<GraphKind> {
+        vec![
+            GraphKind::GlobalPopulations,
+            GraphKind::PlantsLayering,
+            GraphKind::PlantsFertility,
+            GraphKind::PlantsSpread,
+            GraphKind::AnimalsSpeed,
+            GraphKind::AnimalsRange
+        ]
     }
 }
 
@@ -182,7 +204,6 @@ fn graph_data(stats: &Stats, model: &Model, kind: &GraphKind) -> Vec<Vec<u32>> {
                 result[1].push(si.nb_animals);
             }
         },
-        // TODO: Write a macro for this
         GraphKind::PlantsLayering => {
             per_trait_graph_data!(result, stats, model.plants_min_layering, model.plants_max_layering, nb_plants_per_layering);
         },
@@ -211,7 +232,6 @@ where <T as std::str::FromStr>::Err : std::string::ToString
     }
 }
 
-// TODO: Dump curves in result subdirectory for each run.
 // TODO: Loop on various models and compare results
 // TODO: Add predators
 fn main() {
@@ -232,6 +252,13 @@ fn main() {
                 .help("If provided, stop automatically after this number of rounds.")
                 .takes_value(true)
                 .validator(is_type::<u32>))
+        .arg(Arg::with_name("graph_every_n_gen")
+                .short("g")
+                .long("graph_every_n_gen")
+                .value_name("NUMBER")
+                .help("Dump graph every N generation (default: 100)")
+                .takes_value(true)
+                .validator(is_type::<u32>))
         .get_matches();
     let model = match matches.value_of("model") {
         None => Model::new(),
@@ -239,6 +266,10 @@ fn main() {
     };
     let max_rounds = match matches.value_of("rounds") {
         None => std::u32::MAX,
+        Some(num) => num.parse::<u32>().unwrap(),
+    };
+    let dump_graphs_every_n_gen = match matches.value_of("graph_every_n_gen") {
+        None => 100,
         Some(num) => num.parse::<u32>().unwrap(),
     };
     let mut pause = false;
@@ -250,7 +281,6 @@ fn main() {
     let mut animals = Animals::new(&mut grid, &model);
     let mut stats = Stats::new();
     let mut graph_kind = GraphKind::GlobalPopulations;
-    let mut graph = Graph::new(graph_title(&graph_kind), graph_legend(&model, &graph_kind), graph_data(&stats, &model, &graph_kind));
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
 
@@ -262,6 +292,7 @@ fn main() {
         format!("{}/{}", results_dir, filename)
     };
     model.save(Path::new(&result_path("model.json")));
+    fs::create_dir(Path::new(&result_path("graphs"))).unwrap();
     if dump_screenshots {
         fs::create_dir(Path::new(&result_path("screenshots"))).unwrap();
     }
@@ -269,10 +300,12 @@ fn main() {
     'game_loop: loop {
         grid.show(&mut dc);
         if show_graph {
-            graph.set_title(graph_title(&graph_kind));
-            graph.set_legend(graph_legend(&model, &graph_kind));
-            graph.set_data(graph_data(&stats, &model, &graph_kind));
+            let graph = Graph::new(
+                    graph_title(&graph_kind),
+                    graph_legend(&model, &graph_kind),
+                    graph_data(&stats, &model, &graph_kind));
             graph.show(&mut dc);
+            dc.blit_graph();
         } else {
             dc.blit_grid();
         }
@@ -319,13 +352,19 @@ fn main() {
             animals.update(&mut grid, &model);
             plants.cleanup();
             if step % model.steps_per_round == 0 {
+                let round = step / model.steps_per_round;
                 plants.reproduce(&mut grid, &model);
                 animals.finish_round(&mut grid);
                 if dump_screenshots {
                     // TODO: The following doesn't work. Try to reproduce in a minimal example and open an
                     // issue to sdl2 on github.
                     //dc.canvas.window().surface(&event_pump).unwrap().save_bmp(Path::new(&result_path(&format!("screenshots/{:06}.bmp", step)))).unwrap();
-                    dc.save_grid_png(Path::new(&result_path(&format!("screenshots/{:06}.png", step/model.steps_per_round))));
+                    dc.save_grid_png(Path::new(&result_path(&format!("screenshots/{:06}.png", round))));
+                }
+                if round % dump_graphs_every_n_gen == 0 {
+                    let dirname = result_path(&format!("graphs/round{}", round));
+                    fs::create_dir(Path::new(&dirname)).unwrap();
+                    dump_graphs(&mut dc, &stats, &model, dirname);
                 }
             }
         }
@@ -338,4 +377,6 @@ fn main() {
     }
 
     dump_stats(&stats, Path::new(&result_path("stats.csv")));
+    fs::create_dir(Path::new(&result_path("graphs/final"))).unwrap();
+    dump_graphs(&mut dc, &stats, &model, result_path("graphs/final"));
 }

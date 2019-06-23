@@ -4,6 +4,7 @@ use sdl2::rect::Point;
 //use std::convert::TryFrom;
 
 const MARGIN : u32 = 20;
+const LEGEND_MARGIN : i32 = 5;
 const TITLE_HEIGHT : u32 = 50;
 const TOP_MARGIN : u32 = 2*MARGIN + TITLE_HEIGHT; // Margin above and below the title
 const DOWN_MARGIN : u32 = MARGIN;
@@ -37,6 +38,7 @@ impl <T> Graph<T> where
         Graph {title, legend, data}
     }
 
+/*
     pub fn set_title(&mut self, title: String) {
         self.title = title;
     }
@@ -48,11 +50,12 @@ impl <T> Graph<T> where
     pub fn set_data(&mut self, data: Vec<Vec<T>>) {
         self.data = data;
     }
+    */
 
     fn draw_background(&self, dc: &mut DrawingContext) {
         let black = Color::RGB(0, 0, 0);
-        dc.canvas.set_draw_color(black);
-        dc.canvas.fill_rect(sdl2::rect::Rect::new(0, 0, dc.width, dc.height)).unwrap();
+        dc.graph_canvas.set_draw_color(black);
+        dc.graph_canvas.fill_rect(sdl2::rect::Rect::new(0, 0, dc.width, dc.height)).unwrap();
     }
 
     fn draw_title(&self, dc: &mut DrawingContext) {
@@ -61,18 +64,28 @@ impl <T> Graph<T> where
         let title = font.render(&self.title).solid(white).unwrap();
         //let mut r = centered_rect(&title.rect(), &screen_rect);
         let r = sdl2::rect::Rect::new((dc.width as i32 - title.rect().w)/2, LEFT_MARGIN as i32, title.rect().w as u32, title.rect().h as u32);
-        let title = dc.texture_creator.create_texture_from_surface(title).unwrap();
-        dc.canvas.copy(&title, None, r).expect("Rendering graph title failed");
+        let title = dc.graph_texture_creator.create_texture_from_surface(title).unwrap();
+        dc.graph_canvas.copy(&title, None, r).expect("Rendering graph title failed");
     }
 
     fn draw_legend(&self, dc: &mut DrawingContext, c: usize, x: i32, y: i32, color: Color) {
         let font = dc.ttf_context.load_font("./resources/DejaVuSans.ttf", 20).unwrap();
         let legend = font.render(&self.legend[c]).solid(color).unwrap();
         let mut r = legend.rect();
-        r.x = x;
-        r.y = y;
-        let legend = dc.texture_creator.create_texture_from_surface(legend).unwrap();
-        dc.canvas.copy(&legend, None, r).expect("Rendering graph legend failed");
+        r.x = x + LEGEND_MARGIN;
+        r.y = y - r.h/2;
+        let legend = dc.graph_texture_creator.create_texture_from_surface(legend).unwrap();
+        dc.graph_canvas.copy(&legend, None, r).expect("Rendering graph legend failed");
+    }
+
+    fn draw_gen(&self, dc: &mut DrawingContext) {
+        let font = dc.ttf_context.load_font("./resources/DejaVuSans.ttf", 30).unwrap();
+        let white = Color::RGB(255, 255, 255);
+        let text = font.render(&format!("round={}", self.data[0].len())).solid(white).unwrap();
+        let mut r = text.rect();
+        r.x = dc.width as i32 - r.w;
+        let text = dc.graph_texture_creator.create_texture_from_surface(text).unwrap();
+        dc.graph_canvas.copy(&text, None, r).expect("Rendering graph gen text failed");
     }
 
     fn draw_graph(&self, dc: &mut DrawingContext) {
@@ -91,6 +104,9 @@ impl <T> Graph<T> where
         let colors = vec![
             Color::RGB(0, 255, 0),
             Color::RGB(255, 0, 0),
+            Color::RGB(0, 0, 255),
+            Color::RGB(255, 255, 0),
+            Color::RGB(255, 0, 255),
             Color::RGB(0, 255, 255),
         ];
         let dy = (dc.height - TOP_MARGIN - DOWN_MARGIN) as f64 / f64::from(max_y - min_y);
@@ -98,16 +114,16 @@ impl <T> Graph<T> where
             //println!("Curve {} with {} points", c, ds.len());
             let dx = (dc.width - LEFT_MARGIN - RIGHT_MARGIN) as f64 / ds.len() as f64;
             let color = colors[c % colors.len()];
-            dc.canvas.set_draw_color(color);
+            dc.graph_canvas.set_draw_color(color);
             let mut prev_x = 0;
             let mut prev_y = 0;
             for (i, v) in ds.iter().enumerate() {
                 let x = (LEFT_MARGIN as f64 + i as f64*dx) as i32;
                 let y = (TOP_MARGIN as f64 + f64::from(max_y-*v)*dy) as i32;
                 //println!("Point {} at {}, {} ({})", i, x, y, i32::try_from(*v).unwrap());
-                dc.canvas.fill_rect(sdl2::rect::Rect::new(x-PT_SIZE as i32, y-PT_SIZE as i32, 2*PT_SIZE, 2*PT_SIZE)).unwrap();
+                dc.graph_canvas.fill_rect(sdl2::rect::Rect::new(x-PT_SIZE as i32, y-PT_SIZE as i32, 2*PT_SIZE, 2*PT_SIZE)).unwrap();
                 if i > 0 {
-                    dc.canvas.draw_line(Point::new(prev_x, prev_y), Point::new(x, y)).unwrap();
+                    dc.graph_canvas.draw_line(Point::new(prev_x, prev_y), Point::new(x, y)).unwrap();
                 }
                 prev_x = x;
                 prev_y = y;
@@ -120,5 +136,6 @@ impl <T> Graph<T> where
         self.draw_background(dc);
         self.draw_title(dc);
         self.draw_graph(dc);
+        self.draw_gen(dc);
     }
 }
