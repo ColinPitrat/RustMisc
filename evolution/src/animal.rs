@@ -315,15 +315,15 @@ impl Animals {
 
     pub fn stats(&self, stats: &mut StatsItem, model: &Model) {
         stats.nb_animals = self.animals.len() as u32;
-        for _ in 0..=model.animals_max_range {
+        for _ in model.animals_min_range..=model.animals_max_range {
             stats.nb_animals_per_range.push(0);
         }
-        for _ in 0..=model.animals_max_speed {
+        for _ in model.animals_min_speed..=model.animals_max_speed {
             stats.nb_animals_per_speed.push(0);
         }
         for a in self.animals.iter() {
-            stats.nb_animals_per_range[a.range as usize] += 1;
-            stats.nb_animals_per_speed[a.speed as usize] += 1;
+            stats.nb_animals_per_range[(a.range-model.animals_min_range) as usize] += 1;
+            stats.nb_animals_per_speed[(a.speed-model.animals_min_speed) as usize] += 1;
         }
         assert!(stats.nb_animals_per_range.iter().sum::<u32>() == stats.nb_animals);
         assert!(stats.nb_animals_per_speed.iter().sum::<u32>() == stats.nb_animals);

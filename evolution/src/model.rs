@@ -10,8 +10,11 @@ pub struct Model {
     pub steps_per_round : u32,
 
     pub plants_at_start : u32,
+    pub plants_min_layering : u32,
     pub plants_max_layering : u32,
+    pub plants_min_fertility : u32,
     pub plants_max_fertility : u32,
+    pub plants_min_spread : u32,
     pub plants_max_spread : u32,
 
     pub animals_at_start : u32,
@@ -31,8 +34,11 @@ impl Model {
             steps_per_round: 5,
 
             plants_at_start: 4000,
+            plants_min_layering: 0,
             plants_max_layering: 4,
+            plants_min_fertility: 0,
             plants_max_fertility: 3,
+            plants_min_spread: 0,
             plants_max_spread: 100,
 
             animals_at_start: 800,

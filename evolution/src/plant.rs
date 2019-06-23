@@ -24,9 +24,9 @@ pub struct Plants {
 
 impl Plant {
     pub fn new(x: u32, y: u32, model: &Model) -> Plant {
-        let layering = rand::thread_rng().gen_range(0, model.plants_max_layering+1);
-        let fertility = rand::thread_rng().gen_range(0, model.plants_max_fertility+1);
-        let spread = rand::thread_rng().gen_range(0, model.plants_max_spread+1);
+        let layering = rand::thread_rng().gen_range(model.plants_min_layering, model.plants_max_layering+1);
+        let fertility = rand::thread_rng().gen_range(model.plants_min_fertility, model.plants_max_fertility+1);
+        let spread = rand::thread_rng().gen_range(model.plants_min_spread, model.plants_max_spread+1);
         let keep = Cell::new(true);
         Plant{x, y, layering, fertility, spread, keep}
     }
@@ -106,12 +106,13 @@ impl Plants {
             if plant.fertility == 0 || plant.spread == 0 {
                 continue
             }
+            // Range from 0 rather than from min_fertility: if min_fertility is high it's because we want plants to be more often over the threshold.
             let threshold = rand::thread_rng().gen_range(0, model.plants_max_fertility);
             // The plant is not fertil enough to reproduce this round
             if plant.fertility < threshold {
                 continue
             }
-            let nb_seeds = rand::thread_rng().gen_range(0, plant.fertility);
+            let nb_seeds = rand::thread_rng().gen_range(0, plant.fertility+1);
             for _ in 0..nb_seeds {
                 let min_x = cmp::max(0, plant.x as i32 - plant.spread as i32) as u32;
                 let min_y = cmp::max(0, plant.y as i32 - plant.spread as i32) as u32;
@@ -166,19 +167,19 @@ impl Plants {
 
     pub fn stats(&self, stats: &mut StatsItem, model: &Model) {
         stats.nb_plants = self.plants.len() as u32;
-        for _ in 0..=model.plants_max_layering {
+        for _ in model.plants_min_layering..=model.plants_max_layering {
             stats.nb_plants_per_layering.push(0);
         }
-        for _ in 0..=model.plants_max_fertility {
+        for _ in model.plants_min_fertility..=model.plants_max_fertility {
             stats.nb_plants_per_fertility.push(0);
         }
-        for _ in 0..=model.plants_max_spread {
+        for _ in model.plants_min_spread..=model.plants_max_spread {
             stats.nb_plants_per_spread.push(0);
         }
         for p in self.plants.iter() {
-            stats.nb_plants_per_layering[p.layering as usize] += 1;
-            stats.nb_plants_per_fertility[p.fertility as usize] += 1;
-            stats.nb_plants_per_spread[p.spread as usize] += 1;
+            stats.nb_plants_per_layering[(p.layering-model.plants_min_layering) as usize] += 1;
+            stats.nb_plants_per_fertility[(p.fertility-model.plants_min_fertility) as usize] += 1;
+            stats.nb_plants_per_spread[(p.spread-model.plants_min_spread) as usize] += 1;
         }
         assert!(stats.nb_plants_per_layering.iter().sum::<u32>() == stats.nb_plants);
         assert!(stats.nb_plants_per_fertility.iter().sum::<u32>() == stats.nb_plants);

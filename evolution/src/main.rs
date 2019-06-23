@@ -1,5 +1,7 @@
 extern crate chrono;
 extern crate clap;
+extern crate num_derive;
+extern crate num_traits;
 extern crate sdl2;
 
 mod animal;
@@ -20,6 +22,7 @@ use model::Model;
 use plant::Plants;
 use stats::Stats;
 
+use num_traits::FromPrimitive;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::fs;
@@ -98,11 +101,103 @@ fn dump_stats(stats: &Stats, path: &Path) {
     }
 }
 
-fn graph_data(stats: &Stats) -> Vec<Vec<u32>> {
-    let mut result = vec![vec!(), vec!()];
-    for si in stats.stats.iter() {
-        result[0].push(si.nb_plants);
-        result[1].push(si.nb_animals);
+#[derive(Copy, Clone, num_derive::FromPrimitive)]
+enum GraphKind {
+    GlobalPopulations,
+    PlantsLayering,
+    PlantsFertility,
+    PlantsSpread,
+    AnimalsSpeed,
+    AnimalsRange
+}
+
+impl GraphKind {
+    fn next(&self) -> Self {
+        match FromPrimitive::from_u8(*self as u8 + 1) {
+            Some(k) => k,
+            None => FromPrimitive::from_u8(0).unwrap(),
+        }
+    }
+}
+
+fn graph_title(kind: &GraphKind) -> String {
+    String::from(match kind {
+            GraphKind::GlobalPopulations => "Total populations",
+            GraphKind::PlantsLayering => "Plants by layering",
+            GraphKind::PlantsFertility => "Plants by fertility",
+            GraphKind::PlantsSpread => "Plants by spread",
+            GraphKind::AnimalsSpeed => "Animals by speed",
+            GraphKind::AnimalsRange => "Animals by range",
+            })
+}
+
+fn per_trait_graph_legend(min: u32, max: u32) -> Vec<String> {
+    (min..=max).map(|i| i.to_string()).collect()
+}
+
+fn graph_legend(model: &Model, kind: &GraphKind) -> Vec<String> {
+    match kind {
+        GraphKind::GlobalPopulations => {
+            vec!(String::from("Plants"), String::from("Animals"))
+        },
+        GraphKind::PlantsLayering => {
+            per_trait_graph_legend(model.plants_min_layering, model.plants_max_layering)
+        },
+        GraphKind::PlantsFertility => {
+            per_trait_graph_legend(model.plants_min_fertility, model.plants_max_fertility)
+        },
+        GraphKind::PlantsSpread => {
+            per_trait_graph_legend(model.plants_min_spread, model.plants_max_spread)
+        },
+        GraphKind::AnimalsSpeed => {
+            per_trait_graph_legend(model.animals_min_speed, model.animals_max_speed)
+        },
+        GraphKind::AnimalsRange => {
+            per_trait_graph_legend(model.animals_min_range, model.animals_max_range)
+        },
+    }
+}
+
+macro_rules! per_trait_graph_data {
+    ($result: ident, $stats: ident, $min_val:expr, $max_val:expr, $item_list:ident) => {
+            for _ in $min_val..=$max_val {
+                $result.push(vec!());
+            }
+            for si in $stats.stats.iter() {
+                for (i, l) in si.$item_list.iter().enumerate() {
+                    $result[i].push(*l);
+                }
+            }
+    };
+}
+
+fn graph_data(stats: &Stats, model: &Model, kind: &GraphKind) -> Vec<Vec<u32>> {
+    let mut result = vec!();
+    match kind {
+        GraphKind::GlobalPopulations => {
+            result.push(vec!());
+            result.push(vec!());
+            for si in stats.stats.iter() {
+                result[0].push(si.nb_plants);
+                result[1].push(si.nb_animals);
+            }
+        },
+        // TODO: Write a macro for this
+        GraphKind::PlantsLayering => {
+            per_trait_graph_data!(result, stats, model.plants_min_layering, model.plants_max_layering, nb_plants_per_layering);
+        },
+        GraphKind::PlantsFertility => {
+            per_trait_graph_data!(result, stats, model.plants_min_fertility, model.plants_max_fertility, nb_plants_per_fertility);
+        },
+        GraphKind::PlantsSpread => {
+            per_trait_graph_data!(result, stats, model.plants_min_spread, model.plants_max_spread, nb_plants_per_spread);
+        },
+        GraphKind::AnimalsSpeed => {
+            per_trait_graph_data!(result, stats, model.animals_min_speed, model.animals_max_speed, nb_animals_per_speed);
+        },
+        GraphKind::AnimalsRange => {
+            per_trait_graph_data!(result, stats, model.animals_min_range, model.animals_max_range, nb_animals_per_range);
+        },
     }
     result
 }
@@ -116,7 +211,6 @@ where <T as std::str::FromStr>::Err : std::string::ToString
     }
 }
 
-// TODO: Curves for population per trait.
 // TODO: Dump curves in result subdirectory for each run.
 // TODO: Loop on various models and compare results
 // TODO: Add predators
@@ -145,10 +239,9 @@ fn main() {
     };
     let max_rounds = match matches.value_of("rounds") {
         None => std::u32::MAX,
-        // TODO: The message from expect is not great, better handling would be nice.
-        // Unfortunately, support of types in clap is not great ...
         Some(num) => num.parse::<u32>().unwrap(),
     };
+    let mut pause = false;
     let mut show_graph = false;
     let dump_screenshots = false;
     let mut dc = DrawingContext::new(model.screen_width, model.screen_height);
@@ -156,7 +249,8 @@ fn main() {
     let mut plants = Plants::new(&mut grid, &model);
     let mut animals = Animals::new(&mut grid, &model);
     let mut stats = Stats::new();
-    let mut graph = Graph::new(graph_data(&stats));
+    let mut graph_kind = GraphKind::GlobalPopulations;
+    let mut graph = Graph::new(graph_title(&graph_kind), graph_legend(&model, &graph_kind), graph_data(&stats, &model, &graph_kind));
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
 
@@ -175,7 +269,9 @@ fn main() {
     'game_loop: loop {
         grid.show(&mut dc);
         if show_graph {
-            graph.set_data(graph_data(&stats));
+            graph.set_title(graph_title(&graph_kind));
+            graph.set_legend(graph_legend(&model, &graph_kind));
+            graph.set_data(graph_data(&stats, &model, &graph_kind));
             graph.show(&mut dc);
         } else {
             dc.blit_grid();
@@ -198,6 +294,14 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::G), .. } => {
                     show_graph = !show_graph;
                 },
+                Event::KeyDown { keycode: Some(Keycode::N), .. } => {
+                    if show_graph {
+                        graph_kind = graph_kind.next();
+                    }
+                },
+                Event::KeyDown { keycode: Some(Keycode::P), .. } => {
+                    pause = !pause;
+                },
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
                     grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
                     plants = Plants::new(&mut grid, &model);
@@ -207,7 +311,7 @@ fn main() {
             }
         }
 
-        {
+        if ! pause {
             if step % model.steps_per_round == 0 {
                 stats.update(&animals, &plants, &model);
             }
