@@ -233,6 +233,7 @@ where <T as std::str::FromStr>::Err : std::string::ToString
     }
 }
 
+// TODO: Introduce mutations
 // TODO: Loop on various models and compare results
 // TODO: Add predators
 fn main() {

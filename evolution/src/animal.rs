@@ -154,7 +154,7 @@ impl Animal {
                     must_move = true;
                     break;
                 }
-            } else if self.eaten.get() >= model.animals_eat_to_mate && !self.mated.get() {
+            } else if !self.mated.get() {
                 if let CellContent::Animal(other) = grid.at(tx, ty) {
                     if !other.mated.get() {
                         new_x = ((self.x.get() as i32) + move_dx) as u32;
