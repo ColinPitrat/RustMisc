@@ -2,6 +2,7 @@ extern crate rand;
 
 use crate::grid::CellContent;
 use crate::grid::Grid;
+use crate::range_iterator::RangeIterator;
 use crate::model::Model;
 use crate::stats::StatsItem;
 use rand::Rng;
@@ -101,14 +102,7 @@ impl Animal {
         self.mated.set(true);
         other.mated.set(true);
         let (mut new_x, mut new_y) = (-1, -1);
-        for (x, y) in RangeIterator::new(self.x.get() as i32, self.y.get() as i32, 20) {
-            // TODO: move this logic (duplicated in update) into the iterator
-            if x < 0 || x >= grid.width() as i32 {
-                continue;
-            }
-            if y < 0 || y >= grid.height() as i32 {
-                continue;
-            }
+        for (x, y) in RangeIterator::new(self.x.get() as i32, self.y.get() as i32, 20, grid.width() as i32, grid.height() as i32) {
             match grid.at(x as u32, y as u32) {
                 CellContent::Animal(_) => continue,
                 CellContent::Plant(plant) => {
@@ -137,13 +131,7 @@ impl Animal {
         let (mut new_x, mut new_y) = (self.x.get(), self.y.get());
         let mut must_move = false;
         let mut new_animals = vec!();
-        for (tx, ty) in RangeIterator::new(self.x.get() as i32, self.y.get() as i32, self.range as i32) {
-            if tx < 0 || tx >= grid.width() as i32 {
-                continue;
-            }
-            if ty < 0 || ty >= grid.height() as i32 {
-                continue;
-            }
+        for (tx, ty) in RangeIterator::new(self.x.get() as i32, self.y.get() as i32, self.range as i32, grid.width() as i32, grid.height() as i32) {
             let (dx, dy) = (tx - self.x.get() as i32, ty - self.y.get() as i32);
             if dx == 0 && dy == 0 {
                 continue;
@@ -327,121 +315,5 @@ impl Animals {
         }
         assert!(stats.nb_animals_per_range.iter().sum::<u32>() == stats.nb_animals);
         assert!(stats.nb_animals_per_speed.iter().sum::<u32>() == stats.nb_animals);
-    }
-}
-
-struct RangeIterator {
-    x: i32,
-    y: i32,
-    range: i32,
-    d: i32,
-    dx: i32,
-    dy: i32,
-}
-
-impl RangeIterator {
-    fn new(x: i32, y: i32, range: i32) -> RangeIterator {
-        RangeIterator{x, y, range, d: 0, dx: 0, dy: 0}
-    }
-}
-
-impl Iterator for RangeIterator {
-    type Item = (i32, i32);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.dx < -self.range && self.dy < -self.range {
-            None
-        } else {
-            let r = Some((self.x+self.dx, self.y+self.dy));
-            if self.dx == self.d && self.dy == self.d {
-                self.d += 1;
-                self.dx = -self.d;
-                self.dy = -self.d;
-            } else if (self.dx == -self.d || self.dx == self.d) && self.dy < self.d {
-                self.dy += 1;
-            } else if self.dy == -self.d {
-                self.dy = self.d;
-            } else {
-                self.dy = -self.d;
-                self.dx += 1;
-            }
-            r
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn range_iterator() {
-        let mut rg = RangeIterator::new(10, 10, 3);
-
-        // Distance 0
-        assert_eq!(Some((10, 10)), rg.next());
-
-        // Distance 1
-        assert_eq!(Some((9, 9)), rg.next());
-        assert_eq!(Some((9, 10)), rg.next());
-        assert_eq!(Some((9, 11)), rg.next());
-
-        assert_eq!(Some((10, 9)), rg.next());
-        assert_eq!(Some((10, 11)), rg.next());
-
-        assert_eq!(Some((11, 9)), rg.next());
-        assert_eq!(Some((11, 10)), rg.next());
-        assert_eq!(Some((11, 11)), rg.next());
-
-        // Distance 2
-        assert_eq!(Some((8, 8)), rg.next());
-        assert_eq!(Some((8, 9)), rg.next());
-        assert_eq!(Some((8, 10)), rg.next());
-        assert_eq!(Some((8, 11)), rg.next());
-        assert_eq!(Some((8, 12)), rg.next());
-
-        assert_eq!(Some((9, 8)), rg.next());
-        assert_eq!(Some((9, 12)), rg.next());
-        assert_eq!(Some((10, 8)), rg.next());
-        assert_eq!(Some((10, 12)), rg.next());
-        assert_eq!(Some((11, 8)), rg.next());
-        assert_eq!(Some((11, 12)), rg.next());
-
-        assert_eq!(Some((12, 8)), rg.next());
-        assert_eq!(Some((12, 9)), rg.next());
-        assert_eq!(Some((12, 10)), rg.next());
-        assert_eq!(Some((12, 11)), rg.next());
-        assert_eq!(Some((12, 12)), rg.next());
-
-        // Distance 3
-        assert_eq!(Some((7, 7)), rg.next());
-        assert_eq!(Some((7, 8)), rg.next());
-        assert_eq!(Some((7, 9)), rg.next());
-        assert_eq!(Some((7, 10)), rg.next());
-        assert_eq!(Some((7, 11)), rg.next());
-        assert_eq!(Some((7, 12)), rg.next());
-        assert_eq!(Some((7, 13)), rg.next());
-
-        assert_eq!(Some((8, 7)), rg.next());
-        assert_eq!(Some((8, 13)), rg.next());
-        assert_eq!(Some((9, 7)), rg.next());
-        assert_eq!(Some((9, 13)), rg.next());
-        assert_eq!(Some((10, 7)), rg.next());
-        assert_eq!(Some((10, 13)), rg.next());
-        assert_eq!(Some((11, 7)), rg.next());
-        assert_eq!(Some((11, 13)), rg.next());
-        assert_eq!(Some((12, 7)), rg.next());
-        assert_eq!(Some((12, 13)), rg.next());
-
-        assert_eq!(Some((13, 7)), rg.next());
-        assert_eq!(Some((13, 8)), rg.next());
-        assert_eq!(Some((13, 9)), rg.next());
-        assert_eq!(Some((13, 10)), rg.next());
-        assert_eq!(Some((13, 11)), rg.next());
-        assert_eq!(Some((13, 12)), rg.next());
-        assert_eq!(Some((13, 13)), rg.next());
-
-        // Finished
-        assert_eq!(None, rg.next());
     }
 }

@@ -10,6 +10,7 @@ mod graph;
 mod grid;
 mod model;
 mod plant;
+mod range_iterator;
 mod stats;
 
 use animal::Animals;
