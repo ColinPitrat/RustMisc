@@ -17,6 +17,7 @@ pub struct Animal {
     eaten: Cell<u32>, // How much the animal ate in this round
     range: u32, // How far the animal can see
     speed: u32, // How far the animal can go at each step
+    keep: Cell<bool>,
 }
 
 pub struct Animals {
@@ -32,12 +33,20 @@ impl Animal {
             y: Cell::new(y),
             mated: Cell::new(false),
             eaten: Cell::new(0),
-            range, speed
+            range, speed,
+            keep: Cell::new(true),
         }
+    }
+
+    pub fn remove(&self) {
+        self.keep.set(false);
     }
 
     pub fn assert_animal(&self, grid: &Grid) {
         match grid.at(self.x.get(), self.y.get()) {
+            CellContent::Predator(_) => {
+                panic!("Cell {}, {} should contain an animal but contains a predator", self.x.get(), self.y.get());
+            },
             CellContent::Animal(_) => {},
             CellContent::Plant(_) => {
                 panic!("Cell {}, {} should contain an animal but contains a plant", self.x.get(), self.y.get());
@@ -53,6 +62,10 @@ impl Animal {
             return;
         }
         match grid.at(x, y) {
+            CellContent::Predator(_) => {
+                //println!("There's a predator at {}, {} - not moving.", x, y);
+                return;
+            },
             CellContent::Animal(_) => {
                 //println!("There's another animal at {}, {} - not moving.", x, y);
                 return;
@@ -94,7 +107,8 @@ impl Animal {
             y: Cell::new(y),
             mated: Cell::new(true),
             eaten: Cell::new(model.animals_eat_to_mate),
-            range, speed
+            range, speed,
+            keep: Cell::new(true),
         }
     }
 
@@ -104,6 +118,7 @@ impl Animal {
         let (mut new_x, mut new_y) = (-1, -1);
         for (x, y) in RangeIterator::new(self.x.get() as i32, self.y.get() as i32, 20, grid.width() as i32, grid.height() as i32) {
             match grid.at(x as u32, y as u32) {
+                CellContent::Predator(_) => continue,
                 CellContent::Animal(_) => continue,
                 CellContent::Plant(plant) => {
                     new_x = x;
@@ -127,6 +142,7 @@ impl Animal {
         result
     }
 
+    // TODO: Animals should try to escape predators
     pub fn update(&self, grid: &mut Grid, model: &Model) -> Vec<Rc<Animal>> {
         let (mut new_x, mut new_y) = (self.x.get(), self.y.get());
         let mut must_move = false;
@@ -287,6 +303,10 @@ impl Animals {
 
     pub fn size(&self) -> usize {
         self.animals.len()
+    }
+
+    pub fn cleanup(&mut self) {
+        self.animals.retain(|animal| animal.keep.get());
     }
 
     // This method is for debugging only, no need to alert for dead code.

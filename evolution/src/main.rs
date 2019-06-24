@@ -10,6 +10,7 @@ mod graph;
 mod grid;
 mod model;
 mod plant;
+mod predator;
 mod range_iterator;
 mod stats;
 
@@ -21,6 +22,7 @@ use graph::Graph;
 use grid::{CellContent,Grid};
 use model::Model;
 use plant::Plants;
+use predator::Predators;
 use stats::Stats;
 
 use num_traits::FromPrimitive;
@@ -35,29 +37,35 @@ use std::path::Path;
 
 // This method is for debugging only, no need to alert for dead code.
 #[allow(dead_code)]
-fn consistency_checks(animals: &Animals, plants: &Plants, grid: &Grid) {
+fn consistency_checks(predators: &Predators, animals: &Animals, plants: &Plants, grid: &Grid) {
     let mut nb_animals : u32 = 0;
     let mut nb_plants : u32 = 0;
+    let mut nb_predators : u32 = 0;
     let mut nb_empty : u32 = 0;
     for x in 0..grid.width() {
         for y in 0..grid.height() {
             match grid.at(x, y) {
                 CellContent::Plant(_) => nb_plants += 1,
                 CellContent::Animal(_) => nb_animals += 1,
+                CellContent::Predator(_) => nb_predators += 1,
                 CellContent::Empty => nb_empty += 1,
             }
         }
     }
     plants.consistency_checks();
     animals.consistency_checks();
+    predators.consistency_checks();
     println!("{} plants in the grid, {} plants in the list", nb_plants, plants.size() as u32);
     println!("{} animals in the grid, {} animals in the list", nb_animals, animals.size() as u32);
+    println!("{} predators in the grid, {} predators in the list", nb_predators, predators.size() as u32);
     println!("{} cells in the grid, {} cells checked", grid.width()*grid.height(), nb_empty+nb_animals+nb_plants);
     assert!(animals.size() as u32 == nb_animals);
     assert!(plants.size() as u32 == nb_plants);
-    assert!((grid.width()*grid.height()) == nb_empty + nb_animals + nb_plants);
+    assert!(predators.size() as u32 == nb_predators);
+    assert!((grid.width()*grid.height()) == nb_empty + nb_animals + nb_plants + nb_predators);
 }
 
+// TODO: Bug to fix: The values provided are wrong if there's a min value different from 0
 fn dump_stats(stats: &Stats, path: &Path) {
     let mut file = File::create(path).unwrap();
     let mut header = String::from("plants");
@@ -77,6 +85,16 @@ fn dump_stats(stats: &Stats, path: &Path) {
     for s in 0..stats.stats[0].nb_animals_per_speed.len() {
         header += &format!(",speed={}", s);
     }
+    header += ",predators";
+    for r in 0..stats.stats[0].nb_predators_per_range.len() {
+        header += &format!(",range={}", r);
+    }
+    for s in 0..stats.stats[0].nb_predators_per_speed.len() {
+        header += &format!(",speed={}", s);
+    }
+    for s in 0..stats.stats[0].nb_predators_per_power.len() {
+        header += &format!(",power={}", s);
+    }
     header += "\n";
     file.write_all(header.as_bytes()).unwrap();
     for si in stats.stats.iter() {
@@ -95,6 +113,16 @@ fn dump_stats(stats: &Stats, path: &Path) {
             line += &format!(",{}", r);
         }
         for s in si.nb_animals_per_speed.iter() {
+            line += &format!(",{}", s);
+        }
+        line += &format!(",{}", si.nb_predators);
+        for r in si.nb_predators_per_range.iter() {
+            line += &format!(",{}", r);
+        }
+        for s in si.nb_predators_per_speed.iter() {
+            line += &format!(",{}", s);
+        }
+        for s in si.nb_predators_per_power.iter() {
             line += &format!(",{}", s);
         }
         line += "\n";
@@ -120,7 +148,10 @@ enum GraphKind {
     PlantsFertility,
     PlantsSpread,
     AnimalsSpeed,
-    AnimalsRange
+    AnimalsRange,
+    PredatorsSpeed,
+    PredatorsRange,
+    PredatorsPower,
 }
 
 impl GraphKind {
@@ -138,7 +169,10 @@ impl GraphKind {
             GraphKind::PlantsFertility,
             GraphKind::PlantsSpread,
             GraphKind::AnimalsSpeed,
-            GraphKind::AnimalsRange
+            GraphKind::AnimalsRange,
+            GraphKind::PredatorsSpeed,
+            GraphKind::PredatorsRange,
+            GraphKind::PredatorsPower,
         ]
     }
 }
@@ -151,6 +185,9 @@ fn graph_title(kind: &GraphKind) -> String {
             GraphKind::PlantsSpread => "Plants by spread",
             GraphKind::AnimalsSpeed => "Animals by speed",
             GraphKind::AnimalsRange => "Animals by range",
+            GraphKind::PredatorsSpeed => "Predators by speed",
+            GraphKind::PredatorsRange => "Predators by range",
+            GraphKind::PredatorsPower => "Predators by power",
             })
 }
 
@@ -161,7 +198,7 @@ fn per_trait_graph_legend(min: u32, max: u32) -> Vec<String> {
 fn graph_legend(model: &Model, kind: &GraphKind) -> Vec<String> {
     match kind {
         GraphKind::GlobalPopulations => {
-            vec!(String::from("Plants"), String::from("Animals"))
+            vec!(String::from("Plants"), String::from("Animals"), String::from("Predators"))
         },
         GraphKind::PlantsLayering => {
             per_trait_graph_legend(model.plants_min_layering, model.plants_max_layering)
@@ -177,6 +214,15 @@ fn graph_legend(model: &Model, kind: &GraphKind) -> Vec<String> {
         },
         GraphKind::AnimalsRange => {
             per_trait_graph_legend(model.animals_min_range, model.animals_max_range)
+        },
+        GraphKind::PredatorsSpeed => {
+            per_trait_graph_legend(model.predators_min_range, model.predators_max_range)
+        },
+        GraphKind::PredatorsRange => {
+            per_trait_graph_legend(model.predators_min_range, model.predators_max_range)
+        },
+        GraphKind::PredatorsPower => {
+            per_trait_graph_legend(model.predators_min_power(), model.predators_max_power())
         },
     }
 }
@@ -200,9 +246,11 @@ fn graph_data(stats: &Stats, model: &Model, kind: &GraphKind) -> Vec<Vec<u32>> {
         GraphKind::GlobalPopulations => {
             result.push(vec!());
             result.push(vec!());
+            result.push(vec!());
             for si in stats.stats.iter() {
                 result[0].push(si.nb_plants);
                 result[1].push(si.nb_animals);
+                result[2].push(si.nb_predators);
             }
         },
         GraphKind::PlantsLayering => {
@@ -219,6 +267,15 @@ fn graph_data(stats: &Stats, model: &Model, kind: &GraphKind) -> Vec<Vec<u32>> {
         },
         GraphKind::AnimalsRange => {
             per_trait_graph_data!(result, stats, model.animals_min_range, model.animals_max_range, nb_animals_per_range);
+        },
+        GraphKind::PredatorsSpeed => {
+            per_trait_graph_data!(result, stats, model.predators_min_speed, model.predators_max_speed, nb_predators_per_speed);
+        },
+        GraphKind::PredatorsRange => {
+            per_trait_graph_data!(result, stats, model.predators_min_range, model.predators_max_range, nb_predators_per_range);
+        },
+        GraphKind::PredatorsPower => {
+            per_trait_graph_data!(result, stats, model.predators_min_power(), model.predators_max_power(), nb_predators_per_power);
         },
     }
     result
@@ -285,6 +342,7 @@ fn main() {
     let mut grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
     let mut plants = Plants::new(&mut grid, &model);
     let mut animals = Animals::new(&mut grid, &model);
+    let mut predators = Predators::new(&mut grid, &model);
     let mut stats = Stats::new();
     let mut graph_kind = GraphKind::GlobalPopulations;
 
@@ -316,19 +374,14 @@ fn main() {
             dc.blit_grid();
         }
 
+        let mut do_one_step = false;
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'game_loop;
                 },
                 Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
-                    step += 1;
-                    animals.update(&mut grid, &model);
-                    plants.cleanup();
-                    if step % model.steps_per_round == 0 {
-                        plants.reproduce(&mut grid, &model);
-                        animals.finish_round(&mut grid);
-                    }
+                    do_one_step = true;
                 },
                 Event::KeyDown { keycode: Some(Keycode::G), .. } => {
                     show_graph = !show_graph;
@@ -345,22 +398,26 @@ fn main() {
                     grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
                     plants = Plants::new(&mut grid, &model);
                     animals = Animals::new(&mut grid, &model);
+                    predators = Predators::new(&mut grid, &model);
                 },
                 _ => {},
             }
         }
 
-        if ! pause {
+        if do_one_step || !pause {
             if step % model.steps_per_round == 0 {
-                stats.update(&animals, &plants, &model);
+                stats.update(&predators, &animals, &plants, &model);
             }
             step += 1;
             animals.update(&mut grid, &model);
+            predators.update(&mut grid, &model);
             plants.cleanup();
+            animals.cleanup();
             if step % model.steps_per_round == 0 {
                 let round = step / model.steps_per_round;
                 plants.reproduce(&mut grid, &model);
                 animals.finish_round(&mut grid);
+                predators.finish_round(&mut grid);
                 if dump_screenshots {
                     // TODO: The following doesn't work. Try to reproduce in a minimal example and open an
                     // issue to sdl2 on github.

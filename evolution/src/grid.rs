@@ -3,6 +3,7 @@ extern crate sdl2;
 use crate::animal::Animal;
 use crate::dc::DrawingContext;
 use crate::plant::Plant;
+use crate::predator::Predator;
 use rand::Rng;
 use sdl2::pixels::Color;
 use std::rc::Rc;
@@ -11,6 +12,7 @@ pub enum CellContent {
     Empty,
     Plant(Rc<Plant>),
     Animal(Rc<Animal>),
+    Predator(Rc<Predator>),
 }
 
 pub struct Cell {
@@ -63,11 +65,17 @@ impl Grid {
         Color::RGB(255, 0, 0)
     }
 
+    pub fn predator_color() -> Color {
+        Color::RGB(0, 0, 255)
+    }
+
+    // TODO: Get rid of xxx_color and keep just this one
     pub fn content_color(content: &CellContent) -> Color {
         match content {
             CellContent::Empty => Grid::empty_color(),
             CellContent::Plant(_) => Grid::plant_color(),
             CellContent::Animal(_) => Grid::animal_color(),
+            CellContent::Predator(_) => Grid::predator_color(),
         }
     }
 

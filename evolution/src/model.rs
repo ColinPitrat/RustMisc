@@ -23,6 +23,15 @@ pub struct Model {
     pub animals_min_range : u32,
     pub animals_max_range : u32,
     pub animals_eat_to_mate : u32,
+
+    pub predators_at_start : u32,
+    pub predators_min_speed : u32,
+    pub predators_max_speed : u32,
+    pub predators_min_range : u32,
+    pub predators_max_range : u32,
+    pub predators_power_factor : u32,
+    pub predators_max_energy : u32,
+    pub predators_energy_per_prey : u32,
 }
 
 impl Model {
@@ -41,12 +50,21 @@ impl Model {
             plants_min_spread: 0,
             plants_max_spread: 100,
 
-            animals_at_start: 800,
+            animals_at_start: 1600,
             animals_min_speed: 1,
-            animals_max_speed: 4,
+            animals_max_speed: 5,
             animals_min_range: 1,
-            animals_max_range: 4,
+            animals_max_range: 5,
             animals_eat_to_mate: 3,
+
+            predators_at_start: 200,
+            predators_min_speed: 1,
+            predators_max_speed: 5,
+            predators_min_range: 1,
+            predators_max_range: 5,
+            predators_power_factor: 3,
+            predators_max_energy: 6,
+            predators_energy_per_prey: 2,
         }
     }
 
@@ -64,5 +82,17 @@ impl Model {
 
     pub fn grid_height(&self) -> u32 {
         self.screen_height/self.cell_width
+    }
+
+    pub fn predator_power(&self, range: u32, speed: u32) -> u32 {
+        range+speed/self.predators_power_factor + 1
+    }
+
+    pub fn predators_min_power(&self) -> u32 {
+        self.predator_power(self.predators_min_speed, self.predators_min_range)
+    }
+
+    pub fn predators_max_power(&self) -> u32 {
+        self.predator_power(self.predators_max_speed, self.predators_max_range)
     }
 }
