@@ -252,13 +252,17 @@ fn main() {
                 .help("If provided, stop automatically after this number of rounds.")
                 .takes_value(true)
                 .validator(is_type::<u32>))
-        .arg(Arg::with_name("graph_every_n_gen")
+        .arg(Arg::with_name("graph_every_n_round")
                 .short("g")
-                .long("graph_every_n_gen")
+                .long("graph_every_n_round")
                 .value_name("NUMBER")
                 .help("Dump graph every N generation (default: 100)")
                 .takes_value(true)
                 .validator(is_type::<u32>))
+        .arg(Arg::with_name("screenshot_every_round")
+                .short("s")
+                .long("screenshot_every_round")
+                .help("When provided, take a screenshot at every round."))
         .get_matches();
     let model = match matches.value_of("model") {
         None => Model::new(),
@@ -268,13 +272,13 @@ fn main() {
         None => std::u32::MAX,
         Some(num) => num.parse::<u32>().unwrap(),
     };
-    let dump_graphs_every_n_gen = match matches.value_of("graph_every_n_gen") {
+    let dump_graphs_every_n_round = match matches.value_of("graph_every_n_round") {
         None => 100,
         Some(num) => num.parse::<u32>().unwrap(),
     };
+    let dump_screenshots = matches.is_present("screenshot_every_round");
     let mut pause = false;
     let mut show_graph = false;
-    let dump_screenshots = false;
     let mut dc = DrawingContext::new(model.screen_width, model.screen_height);
     let mut grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
     let mut plants = Plants::new(&mut grid, &model);
@@ -361,7 +365,7 @@ fn main() {
                     //dc.canvas.window().surface(&event_pump).unwrap().save_bmp(Path::new(&result_path(&format!("screenshots/{:06}.bmp", step)))).unwrap();
                     dc.save_grid_png(Path::new(&result_path(&format!("screenshots/{:06}.png", round))));
                 }
-                if round % dump_graphs_every_n_gen == 0 {
+                if round % dump_graphs_every_n_round == 0 {
                     let dirname = result_path(&format!("graphs/round{}", round));
                     fs::create_dir(Path::new(&dirname)).unwrap();
                     dump_graphs(&mut dc, &stats, &model, dirname);
