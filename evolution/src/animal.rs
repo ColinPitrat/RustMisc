@@ -219,10 +219,10 @@ impl Animal {
                 },
                 _ => panic!("Unexpected direction !"),
             };
-            new_x = (self.x.get() as i32 + dx) as u32;
-            new_y = (self.y.get() as i32 + dy) as u32;
-            new_x = cmp::min(cmp::max(0, new_x), grid.width()-1);
-            new_y = cmp::min(cmp::max(0, new_y), grid.height()-1);
+            let nx = self.x.get() as i32 + dx;
+            let ny = self.y.get() as i32 + dy;
+            new_x = cmp::min(cmp::max(0, nx) as u32, grid.width()-1);
+            new_y = cmp::min(cmp::max(0, ny) as u32, grid.height()-1);
         }
         if must_move {
             self.move_to(grid, new_x, new_y);
