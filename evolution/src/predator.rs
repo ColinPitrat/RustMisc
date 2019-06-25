@@ -10,6 +10,7 @@ use std::cmp;
 use std::cell::Cell;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct Predator {
     x: Cell<u32>,
     y: Cell<u32>,
@@ -62,9 +63,8 @@ impl Predator {
                 return;
             },
             CellContent::Animal(animal) => {
+                //println!("There's an animal at {}, {}.", x, y);
                 animal.remove();
-                //println!("There's another animal at {}, {} - not moving.", x, y);
-                return;
             },
             CellContent::Plant(plant) => {
                 plant.remove();
@@ -162,6 +162,7 @@ impl Predator {
                     new_x = ((self.x.get() as i32) + move_dx) as u32;
                     new_y = ((self.y.get() as i32) + move_dy) as u32;
                     if new_x == tx && new_y == ty {
+                        //println!("    Will eat animal at {}, {}.", new_x, new_y);
                         //println!("    Will eat animal at {}, {} from {}, {}.", new_x, new_y, self.x.get(), self.y.get());
                         self.energy.set(self.energy.get()+model.predators_energy_per_prey as i32);
                     } else {
@@ -240,10 +241,13 @@ impl Predators {
     pub fn new(grid: &mut Grid, model: &Model) -> Predators {
         let mut predators = vec!();
         for _ in 0..model.predators_at_start {
-            let (x, y) = grid.get_empty_cell();
-            let new_predator = Rc::new(Predator::new(x, y, model));
-            grid.set_content(x, y, CellContent::Predator(Rc::clone(&new_predator)));
-            predators.push(new_predator);
+            if let Some((x, y)) = grid.get_empty_cell() {
+                let new_predator = Rc::new(Predator::new(x, y, model));
+                grid.set_content(x, y, CellContent::Predator(Rc::clone(&new_predator)));
+                predators.push(new_predator);
+            } else {
+                break;
+            }
         }
         Predators{predators}
     }
@@ -314,6 +318,44 @@ impl Predators {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::animal::Animal;
+
+    #[test]
+    fn eat_animal() {
+        let mut grid = Grid::new(3, 3, 1);
+        let mut model = Model::new();
+        model.predators_min_range = 1;
+        model.predators_max_range = 1;
+        model.predators_min_speed = 1;
+        model.predators_max_speed = 1;
+        model.predators_max_energy = 100;
+        model.predators_energy_per_prey = 42;
+        // TODO: More settings needed?
+        let predator1 = Rc::new(Predator::new(0, 0, &model));
+        predator1.energy.set(0);
+        grid.set_content(0, 0, CellContent::Predator(Rc::clone(&predator1)));
+        let predator2 = Rc::new(Predator::new(0, 2, &model));
+        predator2.energy.set(0);
+        grid.set_content(0, 2, CellContent::Predator(Rc::clone(&predator2)));
+        let animal = Rc::new(Animal::new(0, 1, &model));
+        grid.set_content(0, 1, CellContent::Animal(Rc::clone(&animal)));
+
+        assert_matches!(grid.at(0, 0), CellContent::Predator(_));
+        assert_matches!(grid.at(0, 1), CellContent::Animal(_));
+        assert_matches!(grid.at(0, 2), CellContent::Predator(_));
+        predator1.update(&mut grid, &model);
+        assert_matches!(grid.at(0, 0), CellContent::Empty);
+        assert_matches!(grid.at(0, 1), CellContent::Predator(_));
+        assert_matches!(grid.at(0, 2), CellContent::Predator(_));
+        predator2.update(&mut grid, &model);
+        assert_matches!(grid.at(0, 0), CellContent::Empty);
+        assert_matches!(grid.at(0, 1), CellContent::Predator(_));
+        // Note: at this point, predator2 could have moved
+
+        // The first predator ate the animal, the second didn't
+        assert_eq!(predator1.energy.get(), 42);
+        assert_eq!(predator2.energy.get(), 0);
+    }
 
     #[test]
     fn mix_with() {
