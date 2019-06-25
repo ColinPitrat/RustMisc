@@ -10,6 +10,7 @@ use std::cmp;
 use std::cell::Cell;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct Animal {
     x: Cell<u32>,
     y: Cell<u32>,
@@ -163,6 +164,7 @@ impl Animal {
                     new_y = ((self.y.get() as i32) + move_dy) as u32;
                     if new_x == tx && new_y == ty {
                         //println!("    Will eat plant at {}, {} from {}, {}.", new_x, new_y, self.x.get(), self.y.get());
+                        //println!("    Will eat plant at {}, {}.", new_x, new_y);
                         self.eaten.set(self.eaten.get()+1);
                     } else {
                         //println!("    Moving toward plant at {}, {} from {}, {} through {}, {}.", tx, ty, self.x.get(), self.y.get(), new_x, new_y);
@@ -269,10 +271,13 @@ impl Animals {
     pub fn new(grid: &mut Grid, model: &Model) -> Animals {
         let mut animals = vec!();
         for _ in 0..model.animals_at_start {
-            let (x, y) = grid.get_empty_cell();
-            let new_animal = Rc::new(Animal::new(x, y, model));
-            grid.set_content(x, y, CellContent::Animal(Rc::clone(&new_animal)));
-            animals.push(new_animal);
+            if let Some((x, y)) = grid.get_empty_cell() {
+                let new_animal = Rc::new(Animal::new(x, y, model));
+                grid.set_content(x, y, CellContent::Animal(Rc::clone(&new_animal)));
+                animals.push(new_animal);
+            } else {
+                break;
+            }
         }
         Animals{animals}
     }
@@ -335,5 +340,44 @@ impl Animals {
         }
         assert!(stats.nb_animals_per_range.iter().sum::<u32>() == stats.nb_animals);
         assert!(stats.nb_animals_per_speed.iter().sum::<u32>() == stats.nb_animals);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::plant::Plant;
+
+    #[test]
+    fn eat_plant() {
+        let mut grid = Grid::new(3, 3, 1);
+        let mut model = Model::new();
+        model.animals_min_range = 1;
+        model.animals_max_range = 1;
+        model.animals_min_speed = 1;
+        model.animals_max_speed = 1;
+        model.animals_eat_to_mate = 1;
+        let animal1 = Rc::new(Animal::new(0, 0, &model));
+        grid.set_content(0, 0, CellContent::Animal(Rc::clone(&animal1)));
+        let animal2 = Rc::new(Animal::new(0, 2, &model));
+        grid.set_content(0, 2, CellContent::Animal(Rc::clone(&animal2)));
+        let plant = Rc::new(Plant::new(0, 1, &model));
+        grid.set_content(0, 1, CellContent::Plant(Rc::clone(&plant)));
+
+        assert_matches!(grid.at(0, 0), CellContent::Animal(_));
+        assert_matches!(grid.at(0, 1), CellContent::Plant(_));
+        assert_matches!(grid.at(0, 2), CellContent::Animal(_));
+        animal1.update(&mut grid, &model);
+        assert_matches!(grid.at(0, 0), CellContent::Empty);
+        assert_matches!(grid.at(0, 1), CellContent::Animal(_));
+        assert_matches!(grid.at(0, 2), CellContent::Animal(_));
+        animal2.update(&mut grid, &model);
+        assert_matches!(grid.at(0, 0), CellContent::Empty);
+        assert_matches!(grid.at(0, 1), CellContent::Animal(_));
+        // Note: at this point, animal2 could have moved
+
+        // The first animal ate the plant, the second didn't
+        assert_eq!(animal1.eaten.get(), 1);
+        assert_eq!(animal2.eaten.get(), 0);
     }
 }
