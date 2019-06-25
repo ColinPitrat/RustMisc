@@ -73,7 +73,7 @@ impl Model {
     }
 
     pub fn save(&self, path: &Path) {
-        fs::write(path, serde_json::to_string(&self).unwrap()).expect(&format!("Unable to write file {:?}.", path));
+        fs::write(path, serde_json::to_string_pretty(&self).unwrap()).expect(&format!("Unable to write file {:?}.", path));
     }
 
     pub fn grid_width(&self) -> u32 {
