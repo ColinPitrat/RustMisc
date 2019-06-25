@@ -9,6 +9,7 @@ use std::cmp;
 use std::cell::Cell;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct Plant {
     x: u32,
     y: u32,
@@ -64,10 +65,13 @@ impl Plants {
     pub fn new(grid: &mut Grid, model: &Model) -> Plants {
         let mut plants = vec!();
         for _ in 0..model.plants_at_start {
-            let (x, y) = grid.get_empty_cell();
-            let new_plant = Rc::new(Plant::new(x, y, model));
-            grid.set_content(x, y, CellContent::Plant(Rc::clone(&new_plant)));
-            plants.push(new_plant);
+            if let Some((x, y)) = grid.get_empty_cell() {
+                let new_plant = Rc::new(Plant::new(x, y, model));
+                grid.set_content(x, y, CellContent::Plant(Rc::clone(&new_plant)));
+                plants.push(new_plant);
+            } else {
+                break;
+            }
         }
         Plants{plants}
     }
@@ -134,9 +138,22 @@ impl Plants {
         self.plants.append(&mut to_add);
     }
 
+    pub fn spontaneous(&mut self, grid: &mut Grid, model: &Model) {
+        for _ in 0..model.plants_spontaneous_per_round {
+            if let Some((x, y)) = grid.get_empty_cell() {
+                let new_plant = Rc::new(Plant::new(x, y, model));
+                grid.set_content(x, y, CellContent::Plant(Rc::clone(&new_plant)));
+                self.plants.push(new_plant);
+            } else {
+                break;
+            }
+        }
+    }
+
     pub fn reproduce(&mut self, grid: &mut Grid, model: &Model) {
         self.layer(grid);
         self.spread(grid, model);
+        self.spontaneous(grid, model);
     }
 
     pub fn size(&self) -> usize {

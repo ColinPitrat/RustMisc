@@ -10,6 +10,7 @@ pub struct Model {
     pub steps_per_round : u32,
 
     pub plants_at_start : u32,
+    pub plants_spontaneous_per_round : u32,
     pub plants_min_layering : u32,
     pub plants_max_layering : u32,
     pub plants_min_fertility : u32,
@@ -43,6 +44,7 @@ impl Model {
             steps_per_round: 5,
 
             plants_at_start: 4000,
+            plants_spontaneous_per_round: 0,
             plants_min_layering: 0,
             plants_max_layering: 4,
             plants_min_fertility: 0,
@@ -59,12 +61,12 @@ impl Model {
 
             predators_at_start: 200,
             predators_min_speed: 1,
-            predators_max_speed: 5,
+            predators_max_speed: 10,
             predators_min_range: 1,
-            predators_max_range: 5,
+            predators_max_range: 10,
             predators_power_factor: 3,
-            predators_max_energy: 6,
-            predators_energy_per_prey: 2,
+            predators_max_energy: 8,
+            predators_energy_per_prey: 1,
         }
     }
 
