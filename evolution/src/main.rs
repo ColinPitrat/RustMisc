@@ -4,6 +4,10 @@ extern crate num_derive;
 extern crate num_traits;
 extern crate sdl2;
 
+#[cfg(test)]
+#[macro_use]
+extern crate matches;
+
 mod animal;
 mod dc;
 mod graph;
@@ -132,12 +136,17 @@ fn dump_stats(stats: &Stats, path: &Path) {
 
 fn dump_graphs(dc: &mut DrawingContext, stats: &Stats, model: &Model, dir: String) {
     for graph_kind in GraphKind::all() {
-        let graph = Graph::new(
+        let mut graph = Graph::new(
                 graph_title(&graph_kind),
                 graph_legend(&model, &graph_kind),
                 graph_data(&stats, &model, &graph_kind));
         graph.show(dc);
         dc.save_graph_png(Path::new(&format!("{}/{}.png", dir, graph_title(&graph_kind))));
+        if let GraphKind::GlobalPopulations = graph_kind {
+            graph.set_scale(vec![1.0, 5.0, 20.0]);
+            graph.show(dc);
+            dc.save_graph_png(Path::new(&format!("{}/{} scaled.png", dir, graph_title(&graph_kind))));
+        }
     }
 }
 
@@ -290,6 +299,21 @@ where <T as std::str::FromStr>::Err : std::string::ToString
     }
 }
 
+fn help_message() {
+    println!("Commands available:");
+    println!(" - G: Switch between graph and grid");
+    println!(" - N: Switch to the next kind of graph");
+    println!(" - S: On populations graph, apply a scale for better readability");
+    println!(" - R: Reset the simulation");
+    println!(" - P: Pause the simulation");
+    println!(" - Space: When paused, advance one step");
+    println!(" - Escape: Quit the simulation");
+}
+
+// TODO: Fix bug where a single plant (resp. animal) can be eaten by multiple animals (resp.
+// predators)
+// TODO: Move the logic to move an animal/plant to the grid to have a single place that calls the
+// removes
 // TODO: Introduce mutations
 // TODO: Loop on various models and compare results
 // TODO: Add predators
@@ -337,13 +361,16 @@ fn main() {
     };
     let dump_screenshots = matches.is_present("screenshot_every_round");
     let mut pause = false;
+    let mut scale = false;
     let mut show_graph = false;
     let mut dc = DrawingContext::new(model.screen_width, model.screen_height);
+    // TODO: Move grid, plants, animals, predators, stats, step, run_name, result_dir in a "Run" object?
     let mut grid = Grid::new(model.grid_width(), model.grid_height(), model.cell_width);
     let mut plants = Plants::new(&mut grid, &model);
     let mut animals = Animals::new(&mut grid, &model);
     let mut predators = Predators::new(&mut grid, &model);
     let mut stats = Stats::new();
+    let mut step = 0;
     let mut graph_kind = GraphKind::GlobalPopulations;
 
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
@@ -360,14 +387,21 @@ fn main() {
     if dump_screenshots {
         fs::create_dir(Path::new(&result_path("screenshots"))).unwrap();
     }
-    let mut step = 0;
+
+    help_message();
     'game_loop: loop {
         grid.show(&mut dc);
         if show_graph {
-            let graph = Graph::new(
+            let mut graph = Graph::new(
                     graph_title(&graph_kind),
                     graph_legend(&model, &graph_kind),
                     graph_data(&stats, &model, &graph_kind));
+            if scale {
+                // TODO: Think of a better way of handling per-curve scaling
+                if let GraphKind::GlobalPopulations = graph_kind {
+                    graph.set_scale(vec![1.0, 5.0, 20.0]);
+                }
+            }
             graph.show(&mut dc);
             dc.blit_graph();
         } else {
@@ -400,6 +434,11 @@ fn main() {
                     animals = Animals::new(&mut grid, &model);
                     predators = Predators::new(&mut grid, &model);
                     stats = Stats::new();
+                    step = 0;
+                    // TODO: Do a new result dir?
+                },
+                Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                    scale = !scale;
                 },
                 _ => {},
             }
@@ -431,6 +470,7 @@ fn main() {
                     dump_graphs(&mut dc, &stats, &model, dirname);
                 }
             }
+            //consistency_checks(&predators, &animals, &plants, &grid);
         }
 
         dc.canvas.present();
