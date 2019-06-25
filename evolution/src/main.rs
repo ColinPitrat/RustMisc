@@ -399,6 +399,7 @@ fn main() {
                     plants = Plants::new(&mut grid, &model);
                     animals = Animals::new(&mut grid, &model);
                     predators = Predators::new(&mut grid, &model);
+                    stats = Stats::new();
                 },
                 _ => {},
             }
