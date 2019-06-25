@@ -150,6 +150,7 @@ fn dump_graphs(dc: &mut DrawingContext, stats: &Stats, model: &Model, dir: Strin
     }
 }
 
+// TODO: AnimalsPower
 #[derive(Copy, Clone, num_derive::FromPrimitive)]
 enum GraphKind {
     GlobalPopulations,
@@ -310,8 +311,6 @@ fn help_message() {
     println!(" - Escape: Quit the simulation");
 }
 
-// TODO: Fix bug where a single plant (resp. animal) can be eaten by multiple animals (resp.
-// predators)
 // TODO: Move the logic to move an animal/plant to the grid to have a single place that calls the
 // removes
 // TODO: Introduce mutations

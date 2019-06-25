@@ -15,9 +15,10 @@ pub struct Animal {
     x: Cell<u32>,
     y: Cell<u32>,
     mated: Cell<bool>, // Whether this animal reproduced already
-    eaten: Cell<u32>, // How much the animal ate in this round
+    energy: Cell<i32>, // How much energy the animal has left
     range: u32, // How far the animal can see
     speed: u32, // How far the animal can go at each step
+    power: u32,
     keep: Cell<bool>,
 }
 
@@ -29,12 +30,13 @@ impl Animal {
     pub fn new(x: u32, y: u32, model: &Model) -> Animal {
         let range = rand::thread_rng().gen_range(model.animals_min_range, model.animals_max_range+1);
         let speed = rand::thread_rng().gen_range(model.animals_min_speed, model.animals_max_speed+1);
+        let power = model.animal_power(range, speed);
         Animal{
             x: Cell::new(x),
             y: Cell::new(y),
             mated: Cell::new(false),
-            eaten: Cell::new(0),
-            range, speed,
+            energy: Cell::new(model.animals_max_energy as i32),
+            power, range, speed,
             keep: Cell::new(true),
         }
     }
@@ -102,13 +104,13 @@ impl Animal {
         } else {
             other.speed
         };
-        // Created with mated and eaten so that it doesn't get killed.
+        let power = model.animal_power(range, speed);
         Animal{
             x: Cell::new(x),
             y: Cell::new(y),
             mated: Cell::new(true),
-            eaten: Cell::new(model.animals_eat_to_mate),
-            range, speed,
+            energy: Cell::new(model.animals_max_energy as i32),
+            power, range, speed,
             keep: Cell::new(true),
         }
     }
@@ -158,14 +160,14 @@ impl Animal {
             let move_dx = if dx > 0 { cmp::min(self.speed as i32, dx) } else { cmp::max(-(self.speed as i32), dx) };
             let move_dy = if dy > 0 { cmp::min(self.speed as i32, dy) } else { cmp::max(-(self.speed as i32), dy) };
             let (tx, ty) = (tx as u32, ty as u32);
-            if self.eaten.get() < model.animals_eat_to_mate {
+            if self.energy.get() < model.animals_max_energy as i32 {
                 if let CellContent::Plant(_) = grid.at(tx, ty) {
                     new_x = ((self.x.get() as i32) + move_dx) as u32;
                     new_y = ((self.y.get() as i32) + move_dy) as u32;
                     if new_x == tx && new_y == ty {
                         //println!("    Will eat plant at {}, {} from {}, {}.", new_x, new_y, self.x.get(), self.y.get());
                         //println!("    Will eat plant at {}, {}.", new_x, new_y);
-                        self.eaten.set(self.eaten.get()+1);
+                        self.energy.set(self.energy.get()+model.animals_energy_per_plant as i32);
                     } else {
                         //println!("    Moving toward plant at {}, {} from {}, {} through {}, {}.", tx, ty, self.x.get(), self.y.get(), new_x, new_y);
                     }
@@ -188,35 +190,6 @@ impl Animal {
                     }
                 }
             }
-            /*
-            match grid.at(tx, ty) {
-                CellContent::Plant(_) => if self.eaten.get() < model.animals_eat_to_mate {
-                    new_x = ((self.x.get() as i32) + move_dx) as u32;
-                    new_y = ((self.y.get() as i32) + move_dy) as u32;
-                    if new_x == tx && new_y == ty {
-                        //println!("    Will eat plant at {}, {} from {}, {}.", new_x, new_y, self.x.get(), self.y.get());
-                        self.eaten.set(self.eaten.get()+1);
-                    } else {
-                        //println!("    Moving toward plant at {}, {} from {}, {} through {}, {}.", tx, ty, self.x.get(), self.y.get(), new_x, new_y);
-                    }
-                    must_move = true;
-                    break;
-                },
-                CellContent::Animal(other) => if self.eaten.get() >= model.animals_eat_to_mate && !self.mated.get() && !other.mated.get() {
-                    new_x = ((self.x.get() as i32) + move_dx) as u32;
-                    new_y = ((self.y.get() as i32) + move_dy) as u32;
-                    if new_x == tx && new_y == ty {
-                        //println!("    Will mate with animal at {}, {} from {}, {}.", new_x, new_y, self.x.get(), self.y.get());
-                        new_animals = self.reproduce(&other, grid, model);
-                    } else {
-                        //println!("    Moving toward animal at {}, {} from {}, {} through {}, {}.", tx, ty, self.x.get(), self.y.get(), new_x, new_y);
-                    }
-                    must_move = true;
-                    break;
-                },
-                _ => continue,
-            }
-            */
         }
         // If no move so far and still hungry or looking for a mate, just move as much as possible in one random diagonal direction
         if !must_move && !self.mated.get() {
@@ -256,13 +229,15 @@ impl Animal {
 
     pub fn finish_round(&self) {
         self.mated.set(false);
-        self.eaten.set(0);
+    }
+
+    pub fn consume_energy(&self) {
+        self.energy.set(self.energy.get()-self.power as i32);
     }
 
     pub fn survive(&self) -> bool {
-        // self.eaten.get() > 0
-        // self.eaten.get() == model.animals_eat_to_mate
-        self.mated.get()
+        // self.mated.get()
+        self.energy.get() > 0
     }
 
 }
@@ -293,6 +268,7 @@ impl Animals {
     pub fn finish_round(&mut self, grid: &mut Grid) {
         // Remove animals which died of hunger
         for animal in self.animals.iter() {
+            animal.consume_energy();
             if !animal.survive() {
                 animal.assert_animal(grid);
                 grid.set_content(animal.x.get(), animal.y.get(), CellContent::Empty);
@@ -356,10 +332,13 @@ mod tests {
         model.animals_max_range = 1;
         model.animals_min_speed = 1;
         model.animals_max_speed = 1;
-        model.animals_eat_to_mate = 1;
+        model.animals_max_energy = 100;
+        model.animals_energy_per_plant = 42;
         let animal1 = Rc::new(Animal::new(0, 0, &model));
+        animal1.energy.set(0);
         grid.set_content(0, 0, CellContent::Animal(Rc::clone(&animal1)));
         let animal2 = Rc::new(Animal::new(0, 2, &model));
+        animal2.energy.set(0);
         grid.set_content(0, 2, CellContent::Animal(Rc::clone(&animal2)));
         let plant = Rc::new(Plant::new(0, 1, &model));
         grid.set_content(0, 1, CellContent::Plant(Rc::clone(&plant)));
@@ -377,7 +356,32 @@ mod tests {
         // Note: at this point, animal2 could have moved
 
         // The first animal ate the plant, the second didn't
-        assert_eq!(animal1.eaten.get(), 1);
-        assert_eq!(animal2.eaten.get(), 0);
+        assert_eq!(animal1.energy.get(), 42);
+        assert_eq!(animal2.energy.get(), 0);
+    }
+
+    #[test]
+    fn animal_dies_of_hunger() {
+        let mut grid = Grid::new(1, 1, 1);
+        let mut model = Model::new();
+        model.animals_max_energy = 3;
+        let mut animal1 = Animal::new(0, 0, &model);
+        animal1.power = 1;
+        let animal1 = Rc::new(animal1);
+        grid.set_content(0, 0, CellContent::Animal(Rc::clone(&animal1)));
+        let animals = vec![Rc::clone(&animal1)];
+        let mut animals = Animals{animals};
+
+        assert_eq!(animals.animals.len(), 1);
+        assert_eq!(animal1.energy.get(), 3);
+        animals.finish_round(&mut grid);
+        assert_eq!(animal1.energy.get(), 2);
+        animals.finish_round(&mut grid);
+        assert_eq!(animal1.energy.get(), 1);
+        assert_eq!(animals.animals.len(), 1);
+        animals.finish_round(&mut grid);
+        assert_eq!(animal1.energy.get(), 0);
+        assert_eq!(animals.animals.len(), 0);
+        assert_matches!(grid.at(0, 0), CellContent::Empty);
     }
 }

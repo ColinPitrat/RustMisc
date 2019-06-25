@@ -330,7 +330,6 @@ mod tests {
         model.predators_max_speed = 1;
         model.predators_max_energy = 100;
         model.predators_energy_per_prey = 42;
-        // TODO: More settings needed?
         let predator1 = Rc::new(Predator::new(0, 0, &model));
         predator1.energy.set(0);
         grid.set_content(0, 0, CellContent::Predator(Rc::clone(&predator1)));

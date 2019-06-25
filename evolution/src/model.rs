@@ -23,16 +23,20 @@ pub struct Model {
     pub animals_max_speed : u32,
     pub animals_min_range : u32,
     pub animals_max_range : u32,
-    pub animals_eat_to_mate : u32,
+    pub animals_max_energy : u32,
+    pub animals_energy_per_plant : u32,
+    pub animals_power_per_speed : f64,
+    pub animals_power_per_range : f64,
 
     pub predators_at_start : u32,
     pub predators_min_speed : u32,
     pub predators_max_speed : u32,
     pub predators_min_range : u32,
     pub predators_max_range : u32,
-    pub predators_power_factor : u32,
     pub predators_max_energy : u32,
     pub predators_energy_per_prey : u32,
+    pub predators_power_per_speed : f64,
+    pub predators_power_per_range : f64,
 }
 
 impl Model {
@@ -57,16 +61,20 @@ impl Model {
             animals_max_speed: 5,
             animals_min_range: 1,
             animals_max_range: 5,
-            animals_eat_to_mate: 3,
+            animals_max_energy: 3,
+            animals_energy_per_plant: 1,
+            animals_power_per_speed: 0.1,
+            animals_power_per_range: 0.1,
 
             predators_at_start: 200,
             predators_min_speed: 1,
             predators_max_speed: 10,
             predators_min_range: 1,
             predators_max_range: 10,
-            predators_power_factor: 3,
             predators_max_energy: 8,
             predators_energy_per_prey: 1,
+            predators_power_per_speed: 0.2,
+            predators_power_per_range: 0.2,
         }
     }
 
@@ -86,8 +94,20 @@ impl Model {
         self.screen_height/self.cell_width
     }
 
+    pub fn animal_power(&self, range: u32, speed: u32) -> u32 {
+        (self.animals_power_per_range*range as f64 + self.animals_power_per_speed*speed as f64 + 1.0) as u32
+    }
+
+    pub fn animals_min_power(&self) -> u32 {
+        self.animal_power(self.animals_min_speed, self.animals_min_range)
+    }
+
+    pub fn animals_max_power(&self) -> u32 {
+        self.animal_power(self.animals_max_speed, self.animals_max_range)
+    }
+
     pub fn predator_power(&self, range: u32, speed: u32) -> u32 {
-        range+speed/self.predators_power_factor + 1
+        (self.predators_power_per_range*range as f64 + self.predators_power_per_speed*speed as f64 + 1.0) as u32
     }
 
     pub fn predators_min_power(&self) -> u32 {
