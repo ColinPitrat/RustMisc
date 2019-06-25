@@ -8,6 +8,7 @@ use rand::Rng;
 use sdl2::pixels::Color;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub enum CellContent {
     Empty,
     Plant(Rc<Plant>),
@@ -95,16 +96,24 @@ impl Grid {
         self.cells[x as usize][y as usize].content = content;
     }
 
-    pub fn get_empty_cell(&self) -> (u32, u32) {
+    // TODO: Make this method fail faster if the grid is full (and only if really full).
+    // For example, just to N (with N small) tries and then build a list of empty cells.
+    pub fn get_empty_cell(&self) -> Option<(u32, u32)> {
         let (mut x, mut y);
+        let mut tries = 0;
         loop {
             x = rand::thread_rng().gen_range(0, self.width());
             y = rand::thread_rng().gen_range(0, self.height());
             if self.empty(x, y) {
                 break;
             }
+            tries += 1;
+            // Some heuristic that the grid is almost full
+            if tries > self.width()*self.height() {
+                return None
+            }
         }
-        (x, y)
+        Some((x, y))
     }
 
     pub fn show(&self, dc: &mut DrawingContext) {
