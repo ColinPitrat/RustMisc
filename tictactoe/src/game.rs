@@ -25,6 +25,7 @@ impl Game {
         let board = Board::new();
         let next_to_play = Square::White;
         let finished = false;
+        // TODO: Make it possible to choose on the command line which player uses which algorithm
         //let mut current_player = Box::new(RandomPlayer::new());
         //let mut current_player = Box::new(HumanPlayer::new());
         let mut current_player = Box::new(VIPlayer::new(Square::White));
