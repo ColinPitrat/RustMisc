@@ -6,6 +6,7 @@ mod dc;
 use crate::board::{Board,Cell};
 use crate::dc::DrawingContext;
 use sdl2::event::Event;
+use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use std::cmp;
@@ -13,14 +14,17 @@ use std::cmp;
 const SCREEN_WIDTH : u32 = 600;
 const SCREEN_HEIGHT : u32 = 600;
 
+fn show_bg(dc: &mut DrawingContext) {
+    let black = Color::RGB(0, 0, 0);
+    dc.canvas.set_draw_color(black);
+    dc.canvas.fill_rect(sdl2::rect::Rect::new(0, 0, dc.width, dc.height)).unwrap();
+}
+
 fn show_board(dc: &mut DrawingContext, board: &Board) {
     let cell_width = cmp::min(dc.width, dc.height)/3;
-    let black = Color::RGB(0, 0, 0);
     let grey = Color::RGB(127, 127, 127);
     let red = Color::RGB(255, 0, 0);
     let blue = Color::RGB(0, 0, 255);
-    dc.canvas.set_draw_color(black);
-    dc.canvas.fill_rect(sdl2::rect::Rect::new(0, 0, 3*cell_width, 3*cell_width)).unwrap();
     for i in 0..3 {
         for j in 0..3 {
             dc.canvas.set_draw_color(grey);
@@ -31,8 +35,7 @@ fn show_board(dc: &mut DrawingContext, board: &Board) {
                     dc.canvas.fill_rect(sdl2::rect::Rect::new((i * cell_width + cell_width/5) as i32, (j * cell_width + cell_width/5) as i32, 3*cell_width/5, 3*cell_width/5)).unwrap()
                 },
                 Cell::Black => {
-                    dc.canvas.set_draw_color(blue);
-                    dc.canvas.fill_rect(sdl2::rect::Rect::new((i * cell_width + cell_width/5) as i32, (j * cell_width + cell_width/5) as i32, 3*cell_width/5, 3*cell_width/5)).unwrap()
+                    dc.canvas.filled_circle((i * cell_width + cell_width/2) as i16, (j * cell_width + cell_width/2) as i16, (3*cell_width/10) as i16, blue).unwrap()
                 },
                 _ => {},
             }
@@ -65,9 +68,9 @@ fn main() {
                 Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Left, x, y, .. } => {
                     if !finished {
                         let (i, j) = coord_to_pos(&dc, x, y);
-                        // TODO: This could be outside of the grid if display is not square
-                        board.set_pos(i, j, next_to_play).unwrap();
-                        next_to_play = next_to_play.next();
+                        if let Ok(_) = board.set_pos(i, j, next_to_play) {
+                            next_to_play = next_to_play.next();
+                        }
                     }
                     if let Some(c) = board.winner() {
                         println!("{:?} won !", c);
@@ -78,6 +81,7 @@ fn main() {
             }
         }
 
+        show_bg(&mut dc);
         show_board(&mut dc, &board);
         dc.canvas.present();
     }
