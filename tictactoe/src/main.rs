@@ -5,6 +5,7 @@ mod dc;
 mod game;
 mod human_player;
 mod player;
+mod random_player;
 
 use crate::dc::DrawingContext;
 use crate::game::Game;

@@ -2,6 +2,7 @@ use crate::board::{Board,Square};
 use crate::dc::DrawingContext;
 use crate::human_player::HumanPlayer;
 use crate::player::Player;
+use crate::random_player::RandomPlayer;
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use std::boxed::Box;
@@ -23,7 +24,7 @@ impl Game {
         let board = Board::new();
         let next_to_play = Square::White;
         let finished = false;
-        let mut current_player = Box::new(HumanPlayer::new());
+        let mut current_player = Box::new(RandomPlayer::new());
         let other_player = Box::new(HumanPlayer::new());
         current_player.turn_starts(&board);
         Game {
@@ -49,18 +50,20 @@ impl Game {
     }
 
     pub fn try_next_move(&mut self) {
-        if let Some((i, j)) = self.current_player.move_to_play() {
-            if let Ok(_) = self.board.set_pos(i, j, self.next_to_play) {
-                self.next_to_play = self.next_to_play.next();
-                mem::swap(&mut self.current_player, &mut self.other_player);
-                self.current_player.turn_starts(&self.board);
-            } else {
-                // TODO: Another way to specify a bad move?
-                self.current_player.turn_starts(&self.board)
-            }
-            if let Some(c) = self.board.winner() {
-                println!("{:?} won !", c);
-                self.finished = true;
+        if !self.finished {
+            if let Some((i, j)) = self.current_player.move_to_play() {
+                if let Ok(_) = self.board.set_pos(i, j, self.next_to_play) {
+                    self.next_to_play = self.next_to_play.next();
+                    mem::swap(&mut self.current_player, &mut self.other_player);
+                    self.current_player.turn_starts(&self.board);
+                } else {
+                    // TODO: Another way to specify a bad move?
+                    self.current_player.turn_starts(&self.board)
+                }
+                if let Some(c) = self.board.winner() {
+                    println!("{:?} won !", c);
+                    self.finished = true;
+                }
             }
         }
     }
