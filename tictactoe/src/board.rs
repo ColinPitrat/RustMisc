@@ -1,4 +1,6 @@
-#[derive(Copy, Clone, Debug, PartialEq)]
+use serde::{Serialize,Deserialize};
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Square {
     Empty,
     Black,
@@ -15,6 +17,7 @@ impl Square {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Board {
     to_play: Square,
     cells: Vec<Vec<Square>>

@@ -6,6 +6,7 @@ mod game;
 mod human_player;
 mod player;
 mod random_player;
+mod value_iteration_player;
 
 use crate::dc::DrawingContext;
 use crate::game::Game;
@@ -36,6 +37,10 @@ fn main() {
             }
         }
 
+        // TODO: Make this a command line option
+        if game.finished {
+            game = Game::new(SCREEN_WIDTH, SCREEN_HEIGHT);
+        }
         game.try_next_move();
         game.show(&mut dc);
         dc.canvas.present();

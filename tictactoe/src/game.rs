@@ -3,6 +3,7 @@ use crate::dc::DrawingContext;
 use crate::human_player::HumanPlayer;
 use crate::player::Player;
 use crate::random_player::RandomPlayer;
+use crate::value_iteration_player::VIPlayer;
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use std::boxed::Box;
@@ -24,8 +25,10 @@ impl Game {
         let board = Board::new();
         let next_to_play = Square::White;
         let finished = false;
-        let mut current_player = Box::new(RandomPlayer::new());
-        let other_player = Box::new(HumanPlayer::new());
+        //let mut current_player = Box::new(RandomPlayer::new());
+        //let mut current_player = Box::new(HumanPlayer::new());
+        let mut current_player = Box::new(VIPlayer::new(Square::White));
+        let other_player = Box::new(VIPlayer::new(Square::Black));
         current_player.turn_starts(&board);
         Game {
             cell_width,
@@ -55,14 +58,12 @@ impl Game {
                 if let Ok(_) = self.board.set_pos(i, j, self.next_to_play) {
                     self.next_to_play = self.next_to_play.next();
                     mem::swap(&mut self.current_player, &mut self.other_player);
-                    self.current_player.turn_starts(&self.board);
-                } else {
-                    // TODO: Another way to specify a bad move?
-                    self.current_player.turn_starts(&self.board)
                 }
                 if let Some(c) = self.board.winner() {
-                    println!("{:?} won !", c);
+                    //println!("{:?} won !", c);
                     self.finished = true;
+                } else {
+                    self.current_player.turn_starts(&self.board);
                 }
             }
         }
@@ -100,5 +101,13 @@ impl Game {
     pub fn show(&self, dc: &mut DrawingContext) {
         self.show_bg(dc);
         self.show_board(dc);
+    }
+
+}
+
+impl Drop for Game {
+    fn drop(&mut self) {
+        self.current_player.save_model();
+        self.other_player.save_model();
     }
 }

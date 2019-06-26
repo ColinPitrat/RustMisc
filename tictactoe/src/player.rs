@@ -10,4 +10,7 @@ pub trait Player {
 
     // Needed for human players only, to be aware of what to play.
     fn mouse_clicked(&mut self, _pos: (usize, usize)) {}
+
+    // For models which need to save their learning at the end of the game
+    fn save_model(&self) {}
 }
