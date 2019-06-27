@@ -27,9 +27,10 @@ impl Game {
         let finished = false;
         // TODO: Make it possible to choose on the command line which player uses which algorithm
         //let mut current_player = Box::new(RandomPlayer::new());
-        //let mut current_player = Box::new(HumanPlayer::new());
-        let mut current_player = Box::new(VIPlayer::new(Square::White));
+        let mut current_player = Box::new(HumanPlayer::new());
+        //let mut current_player = Box::new(VIPlayer::new(Square::White));
         let other_player = Box::new(VIPlayer::new(Square::Black));
+        //let other_player = Box::new(HumanPlayer::new());
         current_player.turn_starts(&board);
         Game {
             cell_width,

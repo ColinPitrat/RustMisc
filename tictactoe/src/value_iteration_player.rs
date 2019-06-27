@@ -27,10 +27,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-const EXPLORATION_PERCENT: f64 = 10.0;
-const WIN_SCORE: f64 = 1.0;
-const TIE_SCORE: f64 = 0.0;
-const LOOSE_SCORE: f64 = -1.0;
+const EXPLORATION_PERCENT: f64 = 0.1;
+const WIN_SCORE: f64 = 10.0;
+const TIE_SCORE: f64 = 1.0;
+const LOOSE_SCORE: f64 = -10.0;
 const GAMMA: f64 = 0.95;
 
 #[derive(Serialize, Deserialize)]
