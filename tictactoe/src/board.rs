@@ -1,6 +1,6 @@
 use serde::{Serialize,Deserialize};
 
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, Debug, Hash, PartialEq, Serialize, Deserialize)]
 pub enum Square {
     Empty,
     Black,

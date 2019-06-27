@@ -21,7 +21,7 @@ impl Player for HumanPlayer {
     }
 
     fn move_to_play(&mut self) -> Option<(usize, usize)> {
-        // TODO: Should we panic if not listening?
+        //assert!(self.listening, "HumanPlayer asked for move when not listening!");
         if let None = self.played_pos {
             None
         } else {
