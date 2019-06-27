@@ -5,9 +5,11 @@
 // Intuitively, the value of a state is the maximum for all possible action of the direct reward of
 // the action plus the value of the state after the action discounted by a factor gamma.
 // Here, the reward r(x_t, u) is always 0 except when winning (+1) or loosing (-1).
-// We'll also use gamma = 1 to simplify, unless it proves needed to change it.
+// We could also use gamma = 1 to simplify.
 // Using a value of gamma is important in some cases, for example so that loops (like invalid action),
-// which leads to stay in the current state, are not preventing the state value from converging.
+// which lead to stay in the current state, are not preventing the state value from converging. Or
+// when the path from state to state can be infinite with rewards between them, in which case the
+// value can end up being infinite.
 // We shouldn't need it here as we'll only consider actions that make the state progress.
 //
 // We start with all states having a value of 0. Each time the player has to choose what to play,
