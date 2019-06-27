@@ -12,5 +12,5 @@ pub trait Player {
     fn mouse_clicked(&mut self, _pos: (usize, usize)) {}
 
     // For models which need to save their learning at the end of the game
-    fn save_model(&self) {}
+    fn save_model(&mut self) {}
 }

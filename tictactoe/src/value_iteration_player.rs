@@ -186,7 +186,8 @@ impl Player for VIPlayer {
         }
     }
 
-    fn save_model(&self) {
+    fn save_model(&mut self) {
+        self.to_play = None;
         let filename = Self::model_name(self.my_color);
         fs::write(&filename, serde_json::to_string_pretty(&self).unwrap()).expect(&format!("Unable to write file {:?}.", filename));
     }

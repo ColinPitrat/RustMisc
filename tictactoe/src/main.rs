@@ -6,6 +6,7 @@ mod dc;
 mod game;
 mod human_player;
 mod player;
+mod q_learning_player;
 mod random_player;
 mod value_iteration_player;
 
@@ -17,6 +18,8 @@ use sdl2::keyboard::Keycode;
 
 const SCREEN_WIDTH : u32 = 600;
 const SCREEN_HEIGHT : u32 = 660;
+const DEFAULT_PLAYER1 : &str = "human";
+const DEFAULT_PLAYER2 : &str = "value_iteration";
 
 fn help_message() {
     println!("Use --help for command line arguments.");
@@ -35,11 +38,23 @@ fn main() {
                 .short("a")
                 .long("autoreset")
                 .help("When provided, automatically restart a new game after one finished."))
+        .arg(Arg::with_name("player1")
+                .short("1")
+                .long("player1")
+                .takes_value(true)
+                .help(&format!("Algorithm to use for player 1 (human, q_learning, random, value_iteration). Default: {}", DEFAULT_PLAYER1)))
+        .arg(Arg::with_name("player2")
+                .short("2")
+                .long("player2")
+                .takes_value(true)
+                .help(&format!("Algorithm to use for player 2 (human, q_learning, random, value_iteration). Default: {}.", DEFAULT_PLAYER2)))
         .get_matches();
     let autoreset = matches.is_present("autoreset");
+    let player1_algorithm = matches.value_of("player1").unwrap_or(DEFAULT_PLAYER1).to_string();
+    let player2_algorithm = matches.value_of("player2").unwrap_or(DEFAULT_PLAYER2).to_string();
     let mut dc = DrawingContext::new(SCREEN_WIDTH, SCREEN_HEIGHT);
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
-    let mut tictactoe = TicTacToe::new(SCREEN_WIDTH, SCREEN_HEIGHT);
+    let mut tictactoe = TicTacToe::new(SCREEN_WIDTH, SCREEN_HEIGHT, player1_algorithm, player2_algorithm);
     help_message();
     'game_loop: loop {
         for event in event_pump.poll_iter() {

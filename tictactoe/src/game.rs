@@ -2,6 +2,7 @@ use crate::board::{Board,Square};
 use crate::dc::DrawingContext;
 use crate::human_player::HumanPlayer;
 use crate::player::Player;
+use crate::q_learning_player::QLPlayer;
 use crate::random_player::RandomPlayer;
 use crate::value_iteration_player::VIPlayer;
 use sdl2::gfx::primitives::DrawRenderer;
@@ -16,6 +17,8 @@ pub struct TicTacToe {
     pub score_height: u32,
     pub game: Game,
     pub stats: HashMap<Square, u32>,
+    pub player1_algorithm: String,
+    pub player2_algorithm: String,
 }
 
 pub struct Game {
@@ -27,20 +30,22 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new() -> Game {
+    pub fn create_player(kind: &str, color: Square) -> Box<Player> {
+        match kind {
+            "human" => Box::new(HumanPlayer::new()),
+            "random" => Box::new(RandomPlayer::new()),
+            "value_iteration" => Box::new(VIPlayer::new(color)),
+            "q_learning" => Box::new(QLPlayer::new(color)),
+            _ => panic!("Unsupported player type: {}", kind),
+        }
+    }
+
+    pub fn new(player1: &str, player2: &str) -> Game {
         let board = Board::new();
         let next_to_play = Square::White;
         let finished = false;
-
-        // TODO: Make it possible to choose on the command line which player uses which algorithm
-        //let mut current_player = Box::new(HumanPlayer::new());
-        //let mut current_player = Box::new(RandomPlayer::new());
-        let mut current_player = Box::new(VIPlayer::new(Square::White));
-
-        //let other_player = Box::new(HumanPlayer::new());
-        //let other_player = Box::new(RandomPlayer::new());
-        let other_player = Box::new(VIPlayer::new(Square::Black));
-
+        let mut current_player = Self::create_player(player1, Square::White);
+        let other_player = Self::create_player(player2, Square::Black);
         current_player.turn_starts(&board);
         Game {
             board,
@@ -52,11 +57,18 @@ impl Game {
     }
 }
 
+impl Drop for Game {
+    fn drop(&mut self) {
+        self.current_player.save_model();
+        self.other_player.save_model();
+    }
+}
+
 impl TicTacToe {
-    pub fn new(screen_width: u32, screen_height: u32) -> TicTacToe {
+    pub fn new(screen_width: u32, screen_height: u32, player1_algorithm: String, player2_algorithm: String) -> TicTacToe {
         let cell_width = cmp::min(screen_width, screen_height)/3;
         let score_height = cmp::max(0, screen_height as i32 - 3*cell_width as i32) as u32;
-        let game = Game::new();
+        let game = Game::new(&player1_algorithm, &player2_algorithm);
         let mut stats = HashMap::new();
         stats.insert(Square::Empty, 0);
         stats.insert(Square::White, 0);
@@ -66,11 +78,13 @@ impl TicTacToe {
             score_height,
             game,
             stats,
+            player1_algorithm,
+            player2_algorithm
         }
     }
 
     pub fn reset(&mut self) {
-        self.game = Game::new();
+        self.game = Game::new(&self.player1_algorithm, &self.player2_algorithm);
     }
 
     fn coord_to_pos(&self, x: i32, y: i32) -> (usize, usize) {
@@ -166,8 +180,6 @@ impl TicTacToe {
 
 impl Drop for TicTacToe {
     fn drop(&mut self) {
-        self.game.current_player.save_model();
-        self.game.other_player.save_model();
         let whites = self.stats.get(&Square::White).unwrap();
         let blacks = self.stats.get(&Square::Black).unwrap();
         let ties = self.stats.get(&Square::Empty).unwrap();
