@@ -1,5 +1,7 @@
 #[cfg(test)] #[macro_use] extern crate assert_matches;
 
+mod activation;
+mod neuron;
 mod mnist;
 
 const TRAIN_LABELS : &str = "data/train-labels-idx1-ubyte";
