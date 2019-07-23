@@ -1,8 +1,6 @@
 extern crate rand;
-extern crate assert_approx_eq;
 
-use assert_approx_eq::assert_approx_eq;
-use crate::activation::{ActivationFunction, RELU};
+use crate::activation::ActivationFunction;
 use rand::prelude::*;
 
 pub struct Neuron<'a> {
@@ -95,6 +93,8 @@ impl<'a> Neuron<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_approx_eq::assert_approx_eq;
+    use crate::activation::RELU;
 
     #[test]
     fn single_input_neuron_activation() {

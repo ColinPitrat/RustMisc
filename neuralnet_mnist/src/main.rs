@@ -1,6 +1,8 @@
 #[cfg(test)] #[macro_use] extern crate assert_matches;
+#[cfg(test)] extern crate assert_approx_eq;
 
 mod activation;
+mod neuralnet;
 mod neuron;
 mod mnist;
 
