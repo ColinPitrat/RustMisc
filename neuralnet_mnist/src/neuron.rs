@@ -2,16 +2,21 @@ extern crate rand;
 
 use crate::activation::ActivationFunction;
 use rand::prelude::*;
+use serde::{Serialize,Deserialize};
+use std::rc::Rc;
 
-pub struct Neuron<'a> {
+#[derive(Serialize, Deserialize)]
+pub struct Neuron {
     // Neuron properties
     pub nb_inputs: usize,
     pub weights: Vec<f64>,
     pub bias: f64,
-    pub activation: &'a ActivationFunction,
+    pub activation: Rc<Box<dyn ActivationFunction>>,
 
     // Option: whether to average gradient on the batch or sum it
     pub average_gradient: bool,
+
+    // TODO: Move all the backpropagation stuff in a different struct, put it in a Cell and remove many &mut self ...
 
     // Used for backpropagation of last value
     pub last_value: f64,
@@ -24,8 +29,8 @@ pub struct Neuron<'a> {
     pub nb_evals: usize,
 }
 
-impl<'a> Neuron<'a> {
-    pub fn new(nb_inputs: usize, activation: &ActivationFunction, average_gradient: bool) -> Neuron {
+impl Neuron {
+    pub fn new(nb_inputs: usize, activation: Rc<Box<dyn ActivationFunction>>, average_gradient: bool) -> Neuron {
         let mut rng = rand::thread_rng();
         let weights: Vec<f64> = (0..nb_inputs).map(|_| {
             rng.gen::<f64>()*2.0 - 1.0 // A number between -1.0 and 1.0
@@ -35,8 +40,8 @@ impl<'a> Neuron<'a> {
         // Back propagation members are all initialized empty/0
         let last_input = vec!();
         let last_value = 0.0;
-        let dw = vec!();
-        let da = vec!();
+        let dw = vec![0.0; nb_inputs];
+        let da = vec![0.0; nb_inputs];
         let db = 0.0;
         let nb_evals = 0;
         Neuron{
@@ -67,6 +72,7 @@ impl<'a> Neuron<'a> {
     }
 
     pub fn per_eval_backprop(&mut self, error: f64, learning_rate: f64) -> Vec<f64> {
+	assert!(self.last_input.len() > 0, "Did you call per_eval_backprop() on a Neuron without calling output() with for_training=true first ?");
         self.nb_evals += 1;
         let delta = 2.0*error * self.activation.derivative(self.last_value);
         self.db += delta * learning_rate;
@@ -79,6 +85,7 @@ impl<'a> Neuron<'a> {
 
     pub fn per_round_backprop(&mut self) {
         let mut denominator = 1.0;
+        assert!(self.nb_evals != 0, "per_round_backprop() called without any per_eval_backprop() since last prepare_backprop()");
         if self.average_gradient {
             denominator = self.nb_evals as f64;
         }
@@ -98,7 +105,7 @@ mod tests {
 
     #[test]
     fn single_input_neuron_activation() {
-        let mut n = Neuron::new(1, &RELU, false);
+        let mut n = Neuron::new(1, Rc::new(Box::new(RELU)), false);
         n.bias = -0.5;
         n.weights = vec![0.7];
 
@@ -108,7 +115,7 @@ mod tests {
 
     #[test]
     fn multiple_inputs_neuron_activation() {
-        let mut n = Neuron::new(3, &RELU, false);
+        let mut n = Neuron::new(3, Rc::new(Box::new(RELU)), false);
         n.bias = -0.5;
         n.weights = vec![0.7, 0.5, 0.3];
 
@@ -118,7 +125,7 @@ mod tests {
 
     #[test]
     fn backpropagate_error_on_single_neuron() {
-        let mut n = Neuron::new(1, &RELU, false);
+        let mut n = Neuron::new(1, Rc::new(Box::new(RELU)), false);
         n.bias = -0.5;
         n.weights = vec![0.7];
         assert_approx_eq!(0.2, n.output(vec![1.0], true));

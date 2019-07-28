@@ -1,19 +1,22 @@
-extern crate assert_approx_eq;
+#[cfg(test)] extern crate assert_approx_eq;
 
-use assert_approx_eq::assert_approx_eq;
+#[cfg(test)] use assert_approx_eq::assert_approx_eq;
+use serde::{Serialize,Deserialize};
 
 pub const RELU: ReLu = ReLu{};
 pub const SIGMOID: Sigmoid = Sigmoid{};
 pub const TANH: TanH = TanH{};
 
+#[typetag::serde]
 pub trait ActivationFunction {
     fn value(&self, x: f64) -> f64;
     fn derivative(&self, x: f64) -> f64;
 }
 
-pub struct ReLu {
-}
+#[derive(Serialize,Deserialize)]
+pub struct ReLu;
 
+#[typetag::serde]
 impl ActivationFunction for ReLu {
     fn value(&self, x: f64) -> f64 {
         if x > 0.0 {
@@ -32,9 +35,10 @@ impl ActivationFunction for ReLu {
     }
 }
 
-pub struct Sigmoid {
-}
+#[derive(Serialize,Deserialize)]
+pub struct Sigmoid;
 
+#[typetag::serde]
 impl ActivationFunction for Sigmoid {
     fn value(&self, x: f64) -> f64 {
         1.0/(1.0 + (-x).exp())
@@ -51,9 +55,10 @@ impl ActivationFunction for Sigmoid {
     }
 }
 
-pub struct TanH {
-}
+#[derive(Serialize,Deserialize)]
+pub struct TanH;
 
+#[typetag::serde]
 impl ActivationFunction for TanH {
     fn value(&self, x: f64) -> f64 {
         x.tanh()
