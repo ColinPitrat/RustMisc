@@ -28,7 +28,7 @@ impl Img {
     pub fn to_string(&self) -> String {
         self.pixels.iter().chunks(self.width as usize).into_iter().map(|line|
                 line.into_iter().map(|p|
-                    if *p < 0.01 {
+                    if *p < -0.5 {
                         " "
                     }
                     else if *p < 0.5 {
@@ -89,7 +89,9 @@ pub fn read_images(filename: String, limit: Option<u32>) -> Result<Vec<Img>, Str
             return Err(format!("Read {} bytes for images from {}, expected {}", nb_read, filename, nb_images*nb_rows*nb_columns));
         }
     }
-    Ok(data.into_iter().chunks((nb_rows*nb_columns) as usize).into_iter().map(|pixels| Img::new(nb_columns, nb_rows, pixels.into_iter().map(|p| p as f64/255.0).collect())).collect())
+    // Normalize data between -1.0 and 1.0. Not doing that lead to very bad behaviour of the
+    // network, in particular with ReLu.
+    Ok(data.into_iter().chunks((nb_rows*nb_columns) as usize).into_iter().map(|pixels| Img::new(nb_columns, nb_rows, pixels.into_iter().map(|p| 2.0*(p as f64/255.0)-1.0).collect())).collect())
 }
 
 #[cfg(test)]
@@ -99,7 +101,7 @@ mod tests {
 
     #[test]
     fn to_string() {
-        let pixels = vec!(1.0, 0.0, 1.0, 0.1, 0.9, 0.1, 0.3, 0.7, 0.3);
+        let pixels = vec!(1.0, -1.0, 1.0, 0.1, 0.9, 0.1, 0.3, 0.7, -0.3);
         let img = Img::new(3, 3, pixels);
         assert_eq!("# #\n.#.\n.#.", img.to_string())
     }
@@ -172,10 +174,10 @@ mod tests {
                               0, 0, 255, 0,
                               255, 0, 0, 255];
         fs::write(&tmpfile, &data).unwrap();
-        let img1 = Img::new(2, 2, vec![0.0, 1.0, 0.0, 0.0]);
-        let img2 = Img::new(2, 2, vec![1.0, 0.0, 0.0, 0.0]);
-        let img3 = Img::new(2, 2, vec![0.0, 0.0, 1.0, 0.0]);
-        let img4 = Img::new(2, 2, vec![1.0, 0.0, 0.0, 1.0]);
+        let img1 = Img::new(2, 2, vec![-1.0,  1.0, -1.0, -1.0]);
+        let img2 = Img::new(2, 2, vec![ 1.0, -1.0, -1.0, -1.0]);
+        let img3 = Img::new(2, 2, vec![-1.0, -1.0,  1.0, -1.0]);
+        let img4 = Img::new(2, 2, vec![ 1.0, -1.0, -1.0,  1.0]);
         assert_eq!(read_images(tmpfile, None), Ok(vec![img1, img2, img3, img4]));
     }
 }
