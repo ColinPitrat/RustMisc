@@ -11,6 +11,7 @@ use sdl2::render::TextureCreator;
 use sdl2::surface::Surface;
 use sdl2::video::Window;
 use sdl2::video::WindowContext;
+use std::path::Path;
 
 const SCREEN_WIDTH : u32 = 1360;
 const SCREEN_HEIGHT : u32 = 1360;
@@ -54,6 +55,7 @@ impl<'a> DrawingContext<'a> {
     // TODO: I suspect the canvas -> surface -> texture -> copy is what makes it so slow.
     // I think there's a way to draw on the texture directly which should be faster.
     fn blit(&mut self) {
+        self.back_canvas.surface().save_bmp(Path::new("test.bmp")).unwrap();
         let background = self.texture_creator.create_texture_from_surface(self.back_canvas.surface()).unwrap();
         let foreground = self.texture_creator.create_texture_from_surface(self.front_canvas.surface()).unwrap();
         self.canvas.copy(&background, None, None).unwrap();
