@@ -29,3 +29,13 @@ White wins: 0 (0%)
 Black wins: 0 (0%)
 Ties: 10116 (100%)
 
+
+From memory, algorithms I wanted to implement (need to find back the source doc):
+ - Value Iteration
+ - Q Learning
+ - Advantage learning
+ - TD lambda
+
+Advantage learning actually doesn't make sense here because it's main purpose is to avoid having a low difference in value between actions when using an estimator (e.g neural network) for the value function.
+For example, if values are 999 vs. 1000 for 2 actions in the same state, the estimator needs to converge very well (0.1% precision) to make the correct decision. In this case, learning an advantage instead of a value avoids the problem (would be -1 vs. 0 for example).
+[But is it not feasible? Because the whole exercise has no practical interest anyway but if it's feasible, it's still interesting to do it. Typically Q-learning has no interest over value iteration for TicTacToe ...]
