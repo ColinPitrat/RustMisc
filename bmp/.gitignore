@@ -1,3 +1,4 @@
 headers/
-tests/
+tests/*
+!tests/README.txt
 *.txt
