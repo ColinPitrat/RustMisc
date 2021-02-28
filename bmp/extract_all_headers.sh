@@ -1,9 +1,10 @@
 #!/bin/sh
 
-# This requires to add the break at the end of the loop in main.rs
-# TODO: Add an option to not have to modify the source code!
-for file in `find resources/ -name \*.bmp`
+for file in `find tests/ -name \*.bmp`
 do
-  base=`echo $file | sed 's/resources.//' | sed 's/.bmp//'`
-  cargo run --quiet parse $file > headers/$base.txt
+  base=`echo $file | sed 's/tests.//' | sed 's/.bmp//'`
+  txt="headers/$base.txt"
+  mkdir -p `dirname "$txt"`
+  echo $file
+  cargo run --quiet parse $file > $txt
 done

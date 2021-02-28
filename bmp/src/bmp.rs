@@ -1,8 +1,10 @@
 extern crate nom;
 
+use crate::bitreader::BitReader;
 use num_enum::TryFromPrimitive;
-use std::convert::TryFrom;
 use sdl2::gfx::primitives::ToColor;
+use std::collections::HashMap;
+use std::convert::TryFrom;
 
 // cf. https://en.wikipedia.org/wiki/BMP_file_format
 #[derive(Debug, Default, PartialEq)]
@@ -103,8 +105,10 @@ impl Default for DibHeaderSize {
     fn default() -> Self { DibHeaderSize::BITMAPCOREHEADER }
 }
 
+const OUT_OF_U32: u64 = u32::MAX as u64 + 1;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
-#[repr(u32)]
+#[repr(u64)]
 #[allow(non_camel_case_types)]
 pub enum CompressionMethod {
     BI_RGB = 0,
@@ -112,9 +116,10 @@ pub enum CompressionMethod {
     BI_RLE4 = 2,
     // BI_BITFIELDS apparently collides with BI_HUFFMAN1D on OS2: http://zig.tgschultz.com/bmp_file_format.txt
     BI_BITFIELDS = 3,
+    BI_HUFFMAN1D = OUT_OF_U32 + 3,
     // BI_JPEG collides with BI_RLE24 on OS2: http://zig.tgschultz.com/bmp_file_format.txt
     BI_JPEG = 4,
-    BI_RLE24 = 42, // Dummy value, the real one being 4 but colliding with JPEG ...
+    BI_RLE24 = OUT_OF_U32 + 4,
     BI_PNG = 5,
     BI_ALPHABITFIELDS = 6,
     // TODO: Couldn't find any example using those so far ...
@@ -157,6 +162,260 @@ pub enum IntentType {
     LCS_GM_IMAGES = 4,
     LCS_GM_ABS_COLORIMETRIC = 8,
 }
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct HuffmanCodeWord {
+    pub length: usize,
+    pub value: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HuffmanCommand {
+    Eol,
+    Value(usize),
+}
+
+pub enum HuffmanColor {
+    Black,
+    White,
+}
+
+impl HuffmanColor {
+    fn next(&self) -> Self {
+	match self {
+	    HuffmanColor::White => HuffmanColor::Black,
+	    HuffmanColor::Black => HuffmanColor::White,
+	}
+    }
+
+    fn pal_entry(&self) -> usize {
+        match self {
+	    HuffmanColor::White => 0,
+	    HuffmanColor::Black => 1,
+        }
+    }
+}
+
+fn huffman_table(color: &HuffmanColor) -> HashMap<HuffmanCodeWord, HuffmanCommand> {
+    // TODO: RTC is 6x EOL. Should we handle it here?
+    match color {
+	HuffmanColor::White => [
+	    (HuffmanCodeWord{length: 12, value: 0b000000000001}, HuffmanCommand::Eol),
+	    (HuffmanCodeWord{length: 11, value: 0b00000001000}, HuffmanCommand::Value(1792)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010010}, HuffmanCommand::Value(1984)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010011}, HuffmanCommand::Value(2048)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010100}, HuffmanCommand::Value(2112)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010101}, HuffmanCommand::Value(2176)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010110}, HuffmanCommand::Value(2240)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010111}, HuffmanCommand::Value(2304)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000001100}, HuffmanCommand::Value(1856)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000001101}, HuffmanCommand::Value(1920)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011100}, HuffmanCommand::Value(2368)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011101}, HuffmanCommand::Value(2432)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011110}, HuffmanCommand::Value(2496)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011111}, HuffmanCommand::Value(2560)),
+	    (HuffmanCodeWord{length: 8, value: 0b00000010}, HuffmanCommand::Value(29)),
+	    (HuffmanCodeWord{length: 8, value: 0b00000011}, HuffmanCommand::Value(30)),
+	    (HuffmanCodeWord{length: 8, value: 0b00000100}, HuffmanCommand::Value(45)),
+	    (HuffmanCodeWord{length: 8, value: 0b00000101}, HuffmanCommand::Value(46)),
+	    (HuffmanCodeWord{length: 7, value: 0b0000011}, HuffmanCommand::Value(22)),
+	    (HuffmanCodeWord{length: 7, value: 0b0000100}, HuffmanCommand::Value(23)),
+	    (HuffmanCodeWord{length: 8, value: 0b00001010}, HuffmanCommand::Value(47)),
+	    (HuffmanCodeWord{length: 8, value: 0b00001011}, HuffmanCommand::Value(48)),
+	    (HuffmanCodeWord{length: 6, value: 0b000011}, HuffmanCommand::Value(13)),
+	    (HuffmanCodeWord{length: 7, value: 0b0001000}, HuffmanCommand::Value(20)),
+	    (HuffmanCodeWord{length: 8, value: 0b00010010}, HuffmanCommand::Value(33)),
+	    (HuffmanCodeWord{length: 8, value: 0b00010011}, HuffmanCommand::Value(34)),
+	    (HuffmanCodeWord{length: 8, value: 0b00010100}, HuffmanCommand::Value(35)),
+	    (HuffmanCodeWord{length: 8, value: 0b00010101}, HuffmanCommand::Value(36)),
+	    (HuffmanCodeWord{length: 8, value: 0b00010110}, HuffmanCommand::Value(37)),
+	    (HuffmanCodeWord{length: 8, value: 0b00010111}, HuffmanCommand::Value(38)),
+	    (HuffmanCodeWord{length: 7, value: 0b0001100}, HuffmanCommand::Value(19)),
+	    (HuffmanCodeWord{length: 8, value: 0b00011010}, HuffmanCommand::Value(31)),
+	    (HuffmanCodeWord{length: 8, value: 0b00011011}, HuffmanCommand::Value(32)),
+	    (HuffmanCodeWord{length: 6, value: 0b000111}, HuffmanCommand::Value(1)),
+	    (HuffmanCodeWord{length: 6, value: 0b001000}, HuffmanCommand::Value(12)),
+	    (HuffmanCodeWord{length: 8, value: 0b00100100}, HuffmanCommand::Value(53)),
+	    (HuffmanCodeWord{length: 8, value: 0b00100101}, HuffmanCommand::Value(54)),
+	    (HuffmanCodeWord{length: 7, value: 0b0010011}, HuffmanCommand::Value(26)),
+	    (HuffmanCodeWord{length: 8, value: 0b00101000}, HuffmanCommand::Value(39)),
+	    (HuffmanCodeWord{length: 8, value: 0b00101001}, HuffmanCommand::Value(40)),
+	    (HuffmanCodeWord{length: 8, value: 0b00101010}, HuffmanCommand::Value(41)),
+	    (HuffmanCodeWord{length: 8, value: 0b00101011}, HuffmanCommand::Value(42)),
+	    (HuffmanCodeWord{length: 8, value: 0b00101100}, HuffmanCommand::Value(43)),
+	    (HuffmanCodeWord{length: 8, value: 0b00101101}, HuffmanCommand::Value(44)),
+	    (HuffmanCodeWord{length: 7, value: 0b0010111}, HuffmanCommand::Value(21)),
+	    (HuffmanCodeWord{length: 7, value: 0b0011000}, HuffmanCommand::Value(28)),
+	    (HuffmanCodeWord{length: 8, value: 0b00110010}, HuffmanCommand::Value(61)),
+	    (HuffmanCodeWord{length: 8, value: 0b00110011}, HuffmanCommand::Value(62)),
+	    (HuffmanCodeWord{length: 8, value: 0b00110100}, HuffmanCommand::Value(63)),
+	    (HuffmanCodeWord{length: 8, value: 0b00110101}, HuffmanCommand::Value(0)),
+	    (HuffmanCodeWord{length: 8, value: 0b00110110}, HuffmanCommand::Value(320)),
+	    (HuffmanCodeWord{length: 8, value: 0b00110111}, HuffmanCommand::Value(384)),
+	    (HuffmanCodeWord{length: 5, value: 0b00111}, HuffmanCommand::Value(10)),
+	    (HuffmanCodeWord{length: 5, value: 0b01000}, HuffmanCommand::Value(11)),
+	    (HuffmanCodeWord{length: 7, value: 0b0100100}, HuffmanCommand::Value(27)),
+	    (HuffmanCodeWord{length: 8, value: 0b01001010}, HuffmanCommand::Value(59)),
+	    (HuffmanCodeWord{length: 8, value: 0b01001011}, HuffmanCommand::Value(60)),
+	    (HuffmanCodeWord{length: 9, value: 0b010011000}, HuffmanCommand::Value(1472)),
+	    (HuffmanCodeWord{length: 9, value: 0b010011001}, HuffmanCommand::Value(1536)),
+	    (HuffmanCodeWord{length: 9, value: 0b010011010}, HuffmanCommand::Value(1600)),
+	    (HuffmanCodeWord{length: 9, value: 0b010011011}, HuffmanCommand::Value(1728)),
+	    (HuffmanCodeWord{length: 7, value: 0b0100111}, HuffmanCommand::Value(18)),
+	    (HuffmanCodeWord{length: 7, value: 0b0101000}, HuffmanCommand::Value(24)),
+	    (HuffmanCodeWord{length: 8, value: 0b01010010}, HuffmanCommand::Value(49)),
+	    (HuffmanCodeWord{length: 8, value: 0b01010011}, HuffmanCommand::Value(50)),
+	    (HuffmanCodeWord{length: 8, value: 0b01010100}, HuffmanCommand::Value(51)),
+	    (HuffmanCodeWord{length: 8, value: 0b01010101}, HuffmanCommand::Value(52)),
+	    (HuffmanCodeWord{length: 7, value: 0b0101011}, HuffmanCommand::Value(25)),
+	    (HuffmanCodeWord{length: 8, value: 0b01011000}, HuffmanCommand::Value(55)),
+	    (HuffmanCodeWord{length: 8, value: 0b01011001}, HuffmanCommand::Value(56)),
+	    (HuffmanCodeWord{length: 8, value: 0b01011010}, HuffmanCommand::Value(57)),
+	    (HuffmanCodeWord{length: 8, value: 0b01011011}, HuffmanCommand::Value(58)),
+	    (HuffmanCodeWord{length: 6, value: 0b010111}, HuffmanCommand::Value(192)),
+	    (HuffmanCodeWord{length: 6, value: 0b011000}, HuffmanCommand::Value(1664)),
+	    (HuffmanCodeWord{length: 8, value: 0b01100100}, HuffmanCommand::Value(448)),
+	    (HuffmanCodeWord{length: 8, value: 0b01100101}, HuffmanCommand::Value(512)),
+	    (HuffmanCodeWord{length: 9, value: 0b011001100}, HuffmanCommand::Value(704)),
+	    (HuffmanCodeWord{length: 9, value: 0b011001101}, HuffmanCommand::Value(768)),
+	    (HuffmanCodeWord{length: 8, value: 0b01100111}, HuffmanCommand::Value(640)),
+	    (HuffmanCodeWord{length: 8, value: 0b01101000}, HuffmanCommand::Value(576)),
+	    (HuffmanCodeWord{length: 9, value: 0b011010010}, HuffmanCommand::Value(832)),
+	    (HuffmanCodeWord{length: 9, value: 0b011010011}, HuffmanCommand::Value(896)),
+	    (HuffmanCodeWord{length: 9, value: 0b011010100}, HuffmanCommand::Value(960)),
+	    (HuffmanCodeWord{length: 9, value: 0b011010101}, HuffmanCommand::Value(1024)),
+	    (HuffmanCodeWord{length: 9, value: 0b011010110}, HuffmanCommand::Value(1088)),
+	    (HuffmanCodeWord{length: 9, value: 0b011010111}, HuffmanCommand::Value(1152)),
+	    (HuffmanCodeWord{length: 9, value: 0b011011000}, HuffmanCommand::Value(1216)),
+	    (HuffmanCodeWord{length: 9, value: 0b011011001}, HuffmanCommand::Value(1280)),
+	    (HuffmanCodeWord{length: 9, value: 0b011011010}, HuffmanCommand::Value(1344)),
+	    (HuffmanCodeWord{length: 9, value: 0b011011011}, HuffmanCommand::Value(1408)),
+	    (HuffmanCodeWord{length: 7, value: 0b0110111}, HuffmanCommand::Value(256)),
+	    (HuffmanCodeWord{length: 4, value: 0b0111}, HuffmanCommand::Value(2)),
+	    (HuffmanCodeWord{length: 4, value: 0b1000}, HuffmanCommand::Value(3)),
+	    (HuffmanCodeWord{length: 5, value: 0b10010}, HuffmanCommand::Value(128)),
+	    (HuffmanCodeWord{length: 5, value: 0b10011}, HuffmanCommand::Value(8)),
+	    (HuffmanCodeWord{length: 5, value: 0b10100}, HuffmanCommand::Value(9)),
+	    (HuffmanCodeWord{length: 6, value: 0b101010}, HuffmanCommand::Value(16)),
+	    (HuffmanCodeWord{length: 6, value: 0b101011}, HuffmanCommand::Value(17)),
+	    (HuffmanCodeWord{length: 4, value: 0b1011}, HuffmanCommand::Value(4)),
+	    (HuffmanCodeWord{length: 4, value: 0b1100}, HuffmanCommand::Value(5)),
+	    (HuffmanCodeWord{length: 6, value: 0b110100}, HuffmanCommand::Value(14)),
+	    (HuffmanCodeWord{length: 6, value: 0b110101}, HuffmanCommand::Value(15)),
+	    (HuffmanCodeWord{length: 5, value: 0b11011}, HuffmanCommand::Value(64)),
+	    (HuffmanCodeWord{length: 4, value: 0b1110}, HuffmanCommand::Value(6)),
+	    (HuffmanCodeWord{length: 4, value: 0b1111}, HuffmanCommand::Value(7)),
+	].iter().cloned().collect(),
+	HuffmanColor::Black => [
+	    (HuffmanCodeWord{length: 12, value: 0b000000000001}, HuffmanCommand::Eol),
+	    (HuffmanCodeWord{length: 11, value: 0b00000001000}, HuffmanCommand::Value(1792)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010010}, HuffmanCommand::Value(1984)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010011}, HuffmanCommand::Value(2048)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010100}, HuffmanCommand::Value(2112)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010101}, HuffmanCommand::Value(2176)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010110}, HuffmanCommand::Value(2240)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000010111}, HuffmanCommand::Value(2304)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000001100}, HuffmanCommand::Value(1856)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000001101}, HuffmanCommand::Value(1920)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011100}, HuffmanCommand::Value(2368)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011101}, HuffmanCommand::Value(2432)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011110}, HuffmanCommand::Value(2496)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000011111}, HuffmanCommand::Value(2560)),
+	    (HuffmanCodeWord{length: 10, value: 0b0000001000}, HuffmanCommand::Value(18)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000100100}, HuffmanCommand::Value(52)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001001010}, HuffmanCommand::Value(640)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001001011}, HuffmanCommand::Value(704)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001001100}, HuffmanCommand::Value(768)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001001101}, HuffmanCommand::Value(832)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000100111}, HuffmanCommand::Value(55)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000101000}, HuffmanCommand::Value(56)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001010010}, HuffmanCommand::Value(1280)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001010011}, HuffmanCommand::Value(1344)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001010100}, HuffmanCommand::Value(1408)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001010101}, HuffmanCommand::Value(1472)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000101011}, HuffmanCommand::Value(59)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000101100}, HuffmanCommand::Value(60)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001011010}, HuffmanCommand::Value(1536)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001011011}, HuffmanCommand::Value(1600)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000010111}, HuffmanCommand::Value(24)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000011000}, HuffmanCommand::Value(25)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001100100}, HuffmanCommand::Value(1664)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001100101}, HuffmanCommand::Value(1728)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000110011}, HuffmanCommand::Value(320)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000110100}, HuffmanCommand::Value(384)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000110101}, HuffmanCommand::Value(448)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001101100}, HuffmanCommand::Value(512)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001101101}, HuffmanCommand::Value(576)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000110111}, HuffmanCommand::Value(53)),
+	    (HuffmanCodeWord{length: 12, value: 0b000000111000}, HuffmanCommand::Value(54)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001110010}, HuffmanCommand::Value(896)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001110011}, HuffmanCommand::Value(960)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001110100}, HuffmanCommand::Value(1024)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001110101}, HuffmanCommand::Value(1088)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001110110}, HuffmanCommand::Value(1152)),
+	    (HuffmanCodeWord{length: 13, value: 0b0000001110111}, HuffmanCommand::Value(1216)),
+	    (HuffmanCodeWord{length: 10, value: 0b0000001111}, HuffmanCommand::Value(64)),
+	    (HuffmanCodeWord{length: 8, value: 0b00000100}, HuffmanCommand::Value(13)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000101000}, HuffmanCommand::Value(23)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001010010}, HuffmanCommand::Value(50)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001010011}, HuffmanCommand::Value(51)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001010100}, HuffmanCommand::Value(44)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001010101}, HuffmanCommand::Value(45)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001010110}, HuffmanCommand::Value(46)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001010111}, HuffmanCommand::Value(47)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001011000}, HuffmanCommand::Value(57)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001011001}, HuffmanCommand::Value(58)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001011010}, HuffmanCommand::Value(61)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001011011}, HuffmanCommand::Value(256)),
+	    (HuffmanCodeWord{length: 10, value: 0b0000010111}, HuffmanCommand::Value(16)),
+	    (HuffmanCodeWord{length: 10, value: 0b0000011000}, HuffmanCommand::Value(17)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001100100}, HuffmanCommand::Value(48)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001100101}, HuffmanCommand::Value(49)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001100110}, HuffmanCommand::Value(62)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001100111}, HuffmanCommand::Value(63)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001101000}, HuffmanCommand::Value(30)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001101001}, HuffmanCommand::Value(31)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001101010}, HuffmanCommand::Value(32)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001101011}, HuffmanCommand::Value(33)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001101100}, HuffmanCommand::Value(40)),
+	    (HuffmanCodeWord{length: 12, value: 0b000001101101}, HuffmanCommand::Value(41)),
+	    (HuffmanCodeWord{length: 11, value: 0b00000110111}, HuffmanCommand::Value(22)),
+	    (HuffmanCodeWord{length: 8, value: 0b00000111}, HuffmanCommand::Value(14)),
+	    (HuffmanCodeWord{length: 7, value: 0b0000100}, HuffmanCommand::Value(10)),
+	    (HuffmanCodeWord{length: 7, value: 0b0000101}, HuffmanCommand::Value(11)),
+	    (HuffmanCodeWord{length: 9, value: 0b000011000}, HuffmanCommand::Value(15)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011001000}, HuffmanCommand::Value(128)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011001001}, HuffmanCommand::Value(192)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011001010}, HuffmanCommand::Value(26)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011001011}, HuffmanCommand::Value(27)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011001100}, HuffmanCommand::Value(28)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011001101}, HuffmanCommand::Value(29)),
+	    (HuffmanCodeWord{length: 11, value: 0b00001100111}, HuffmanCommand::Value(19)),
+	    (HuffmanCodeWord{length: 11, value: 0b00001101000}, HuffmanCommand::Value(20)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011010010}, HuffmanCommand::Value(34)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011010011}, HuffmanCommand::Value(35)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011010100}, HuffmanCommand::Value(36)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011010101}, HuffmanCommand::Value(37)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011010110}, HuffmanCommand::Value(38)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011010111}, HuffmanCommand::Value(39)),
+	    (HuffmanCodeWord{length: 11, value: 0b00001101100}, HuffmanCommand::Value(21)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011011010}, HuffmanCommand::Value(42)),
+	    (HuffmanCodeWord{length: 12, value: 0b000011011011}, HuffmanCommand::Value(43)),
+	    (HuffmanCodeWord{length: 10, value: 0b0000110111}, HuffmanCommand::Value(0)),
+	    (HuffmanCodeWord{length: 7, value: 0b0000111}, HuffmanCommand::Value(12)),
+	    (HuffmanCodeWord{length: 6, value: 0b000100}, HuffmanCommand::Value(9)),
+	    (HuffmanCodeWord{length: 6, value: 0b000101}, HuffmanCommand::Value(8)),
+	    (HuffmanCodeWord{length: 5, value: 0b00011}, HuffmanCommand::Value(7)),
+	    (HuffmanCodeWord{length: 4, value: 0b0010}, HuffmanCommand::Value(6)),
+	    (HuffmanCodeWord{length: 4, value: 0b0011}, HuffmanCommand::Value(5)),
+	    (HuffmanCodeWord{length: 3, value: 0b010}, HuffmanCommand::Value(1)),
+	    (HuffmanCodeWord{length: 3, value: 0b011}, HuffmanCommand::Value(4)),
+	    (HuffmanCodeWord{length: 2, value: 0b10}, HuffmanCommand::Value(3)),
+	    (HuffmanCodeWord{length: 2, value: 0b11}, HuffmanCommand::Value(2)),
+	].iter().cloned().collect(),
+    }
+}
+
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Color {
@@ -271,6 +530,7 @@ pub fn apply_gammas(color: Colorf, gammas: &Gammas) -> Colorf {
     }
 }
 
+#[allow(dead_code)]
 pub fn unapply_gammas(color: Colorf, gammas: &Gammas) -> Colorf {
     let red = apply_gamma(color.red, 1.0/gammas.red);
     let green = apply_gamma(color.green, 1.0/gammas.green);
@@ -444,7 +704,7 @@ impl <'a>BmpFile {
                     compression, image_size, x_px_per_m, y_px_per_m,
                     mut colors_in_table, _important_color,
         )) = tuple((
-            context("Compression", map_res(le_u32, |x| CompressionMethod::try_from(x))),
+            context("Compression", map_res(le_u32, |x| CompressionMethod::try_from(x as u64))),
             context("Image Size", map(le_u32, |x| x as u64)),
             // TODO: Support non-square pixels?
             // g/pal8nonsquare.bmp in
@@ -473,6 +733,10 @@ impl <'a>BmpFile {
         // BI_JPEG collides with BI_RLE24 on OS2: http://zig.tgschultz.com/bmp_file_format.txt
         if compression == CompressionMethod::BI_JPEG && self.dib_header_size == DibHeaderSize::OS22XBITMAPHEADER64 {
             self.compression = Some(CompressionMethod::BI_RLE24);
+        }
+        // BI_BITFIELDS collides with BI_HUFFMAN1D on OS2: http://zig.tgschultz.com/bmp_file_format.txt
+        if compression == CompressionMethod::BI_BITFIELDS && self.dib_header_size == DibHeaderSize::OS22XBITMAPHEADER64 {
+            self.compression = Some(CompressionMethod::BI_HUFFMAN1D);
         }
         if image_size != 0 {
             self.image_size = image_size;
@@ -520,7 +784,7 @@ impl <'a>BmpFile {
                 let alpha_shift = shift_from_mask(alpha_mask);
                 self.bitmasks = Some(Bitmasks{
                     red_mask: bm.red_mask, red_shift: bm.red_shift,
-                    green_mask: bm.green_mask, green_shift: bm.green_shift, 
+                    green_mask: bm.green_mask, green_shift: bm.green_shift,
                     blue_mask: bm.blue_mask, blue_shift: bm.blue_shift,
                     alpha_mask, alpha_shift});
             }
@@ -823,8 +1087,83 @@ impl <'a>BmpFile {
         Ok((&[], ()))
     }
 
+    // CCITT Group 3 1-Dimensional (G31D) encoding, improperly referred to as Huffman about
+    // everywhere.
+    // Well described in http://zig.tgschultz.com/bmp_file_format.txt
+    // See https://www.itu.int/rec/T-REC-T.4-200307-I/en for specification
+    fn pixels_from_huffman1d(&mut self) -> Result<'a, ()> {
+	let mut color = HuffmanColor::White;
+        // TODO: Extract data and pixels in separate structures to avoid having to copy.
+        // This copy is done to workaround the borrow checker as data is borrowed here and pixels
+        // later.
+        let mut data = self.data.clone();
+        let mut bit_reader = BitReader::new(data.as_slice());
+        let mut nb_eol = 0;
+        let mut x = 0;
+        let mut y = self.height;
+        println!("Decoding {:?}", self.data);
+	loop {
+                println!("Color: {:?}", color.pal_entry());
+		let table = huffman_table(&color);
+                let mut value = 0 as u32;
+		let mut length = 0;
+		while length <= 13 {
+                    value <<= 1;
+                    match bit_reader.read_bit().unwrap() {
+                        Some(b) => {
+                            if b {
+                                value += 1;
+                            }
+                        },
+                        None => {
+                            break;
+                        }
+                    }
+		    length += 1;
+                    if table.contains_key(&HuffmanCodeWord{length, value}) {
+                        break;
+                    }
+		}
+                let code = HuffmanCodeWord{length, value};
+                let command = table.get(&code);
+                println!("Code: {:?}", code);
+                match command {
+                    Some(HuffmanCommand::Eol) => {
+                        println!("EOL");
+                        nb_eol += 1;
+                        color = HuffmanColor::White;
+                        x = 0;
+                        y -= 1;
+                    },
+                    Some(HuffmanCommand::Value(run_length)) => {
+                        nb_eol = 0;
+                        println!("{:?} {:?} pixels", *run_length, color.pal_entry());
+                        self.put_pixels(&mut x, &y, color.pal_entry(), *run_length)?;
+                        if *run_length <= 63 {
+                            color = color.next();
+                        }
+                    },
+                    None => {
+                        println!("No match for Huffman code: {:?}", code);
+                        // TODO: Better error (e.g couldn't decode Huffman code)
+                        return Err(nom::Err::Failure(nom::error::make_error::<Input, nom::error::VerboseError<Input>>(&[], nom::error::ErrorKind::RegexpCaptures)));
+                    }
+                }
+                // 6xEOL (End of Line) indicates RTC (Return to Control), i.e
+                // end of image.
+                if nb_eol == 6 {
+                    break;
+                }
+	}
+        Ok((&[], ()))
+    }
+
     fn pixels_from_uncompressed(&mut self) -> Result<'a, ()> {
-        let mut line_bytes = ((self.width*self.bpp as i32)/8) as usize;
+        if self.bpp == 0 {
+            // TODO: Better error (e.g bpp == 0)
+            return Err(nom::Err::Failure(nom::error::make_error::<Input, nom::error::VerboseError<Input>>(&[], nom::error::ErrorKind::TooLarge)));
+        }
+        let mut line_bytes = ((self.width*self.bpp as i32 + 7)/8) as usize;
         let ppb = (8/self.bpp) as usize;
         if line_bytes%4 != 0 {
             line_bytes += 4 - (line_bytes%4);
@@ -861,9 +1200,9 @@ impl <'a>BmpFile {
             },
             16 | 24 | 32 => {
                 let bytespp = self.bpp / 8;
-                let mut aligned_width = self.width;
-                while (aligned_width as u64*bytespp as u64) % 4 != 0 {
-                    aligned_width += 1;
+                let mut aligned_bytes = self.width as u64*bytespp as u64;
+                while aligned_bytes % 4 != 0 {
+                    aligned_bytes += 1;
                 }
                 let bitmasks = if let Some(bm) = &self.bitmasks {
                     bm
@@ -918,10 +1257,10 @@ impl <'a>BmpFile {
                 };
                 for x in 0..(self.width as usize) {
                     for y in 0..(self.height.abs() as usize) {
-                        let offset = y*aligned_width as usize + x as usize;
+                        let offset = y*aligned_bytes as usize + bytespp as usize*x as usize;
                         let mut val = 0;
                         for i in 0..bytespp as usize {
-                            val += (self.data[bytespp as usize*offset+i] as u32) << 8*i;
+                            val += (self.data[offset+i] as u32) << 8*i;
                         }
                         let red = normalize_from_mask(val, bitmasks.red_mask, bitmasks.red_shift);
                         let green = normalize_from_mask(val, bitmasks.green_mask, bitmasks.green_shift);
@@ -941,6 +1280,12 @@ impl <'a>BmpFile {
     }
 
     fn pixels_from_data(&mut self) -> Result<'a, ()> {
+        // Cowardly refuse to handle images bigger than 1 billion pixels (1GB for 8bpp, 3GB for
+        // 24bpp).
+        if self.height.abs() as usize * self.width as usize > 1024*1024*1024 {
+            // TODO: Better error (e.g unsupported bpp)
+            return Err(nom::Err::Failure(nom::error::make_error::<Input, nom::error::VerboseError<Input>>(&[], nom::error::ErrorKind::TooLarge)));
+        }
         self.pixels = vec![vec![Color{ ..Default::default() }; self.height.abs() as usize]; self.width as usize];
         match self.compression {
             None |
@@ -948,17 +1293,21 @@ impl <'a>BmpFile {
             Some(CompressionMethod::BI_BITFIELDS) |
             Some(CompressionMethod::BI_ALPHABITFIELDS) => self.pixels_from_uncompressed(),
 
-            // TODO: Support anything below this
             Some(CompressionMethod::BI_RLE4) |
             Some(CompressionMethod::BI_RLE8) |
             Some(CompressionMethod::BI_RLE24) => self.pixels_from_rle(),
 
-            // TODO: Replace panic by a proper error.
-            Some(CompressionMethod::BI_JPEG) |
-            Some(CompressionMethod::BI_PNG) |
+            Some(CompressionMethod::BI_HUFFMAN1D) => self.pixels_from_huffman1d(),
+
+            // TODO: Support anything below this
             Some(CompressionMethod::BI_CMYK) |
+            Some(CompressionMethod::BI_CMYKRLE4) |
             Some(CompressionMethod::BI_CMYKRLE8) |
-            Some(CompressionMethod::BI_CMYKRLE4) => panic!("Unsupported compression: {:?}", self.compression),
+            Some(CompressionMethod::BI_JPEG) |
+            Some(CompressionMethod::BI_PNG) => {
+                // TODO: Better error (e.g Unsupported compression method)
+                return Err(nom::Err::Failure(nom::error::make_error::<Input, nom::error::VerboseError<Input>>(&[], nom::error::ErrorKind::TooLarge)));
+            }
         }
     }
 }
@@ -1052,6 +1401,10 @@ impl BmpFile {
 
         let (i, _) = result.parse_colors(i, result.colors_in_table)?;
 
+        if result.offset as usize > input.len() {
+            // TODO: Better error (e.g Data offset too large)
+            return Err(nom::Err::Failure(nom::error::make_error::<Input, nom::error::VerboseError<Input>>(&[], nom::error::ErrorKind::TooLarge)));
+        }
         let (_, data) = input.split_at(result.offset as usize);
         //let (data, _) = data.split_at(result.image_size as usize);
         result.data = data.to_vec();

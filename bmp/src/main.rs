@@ -7,6 +7,7 @@ use sdl2::pixels::Color;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 
+mod bitreader;
 mod bmp;
 
 use bmp::*;
