@@ -1096,7 +1096,7 @@ impl <'a>BmpFile {
         // TODO: Extract data and pixels in separate structures to avoid having to copy.
         // This copy is done to workaround the borrow checker as data is borrowed here and pixels
         // later.
-        let mut data = self.data.clone();
+        let data = self.data.clone();
         let mut bit_reader = BitReader::new(data.as_slice());
         let mut nb_eol = 0;
         let mut x = 0;
