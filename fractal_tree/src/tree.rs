@@ -9,6 +9,8 @@ pub struct TreeParams {
     pub angle: f64,
     pub size: f64,
     pub randomness: f64,
+    pub leaves: bool,
+    pub max_generations: isize,
 }
 
 pub struct Tree {
@@ -18,7 +20,7 @@ pub struct Tree {
 
 impl Tree {
     pub fn new(tree_params: &TreeParams, root: Point) -> Tree {
-        println!("Create tree with {:#?}", tree_params);
+        //println!("Create tree with {:#?}", tree_params);
         let mut branches = vec!(
                 Branch::new(
                     Point::new(root.x, root.y),
@@ -28,7 +30,7 @@ impl Tree {
         loop {
             let mut to_add = vec!();
             for branch in branches.iter_mut() {
-                to_add.extend(branch.children(tree_params.ratio, tree_params.angle));
+                to_add.extend(branch.children(tree_params.ratio, tree_params.angle, tree_params.max_generations));
             }
             if to_add.is_empty() {
                 break;
@@ -36,8 +38,10 @@ impl Tree {
             branches.extend(to_add);
         }
         let mut leaves = vec!();
-        for b in branches.iter() {
-            leaves.extend(b.leaf());
+        if tree_params.leaves {
+            for b in branches.iter() {
+                leaves.extend(b.leaf());
+            }
         }
         Tree{branches, leaves}
     }

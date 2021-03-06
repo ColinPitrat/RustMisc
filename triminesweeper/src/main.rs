@@ -14,10 +14,13 @@ use sdl2::video::Window;
 use sdl2::video::WindowContext;
 use std::cmp;
 
-const SCREEN_WIDTH : u32 = 1000;
+const SCREEN_WIDTH : u32 = 2000;
+//const SCREEN_WIDTH : u32 = 1000;
 const SCREEN_HEIGHT : u32 = 1000;
-const CELL_WIDTH : u32 = 100;
-const NB_MINES : u32 = 40;
+const CELL_WIDTH : u32 = 50;
+//const CELL_WIDTH : u32 = 100;
+const NB_MINES : u32 = 320;
+//const NB_MINES : u32 = 40;
 
 #[derive(PartialEq)]
 enum GamePhase {
@@ -33,6 +36,7 @@ struct Cell {
     marked: bool,
     mine: bool,
     neighbours: usize,
+    over: bool,
 }
 
 struct Grid {
@@ -74,6 +78,7 @@ impl Grid {
                     marked: false,
                     mine: mines_pos.contains(&(x, y)),
                     neighbours: result.count_neighbours(x, y, &mines_pos),
+                    over: false,
                 };
                 cells_col.push(cell);
                 y += 1;
@@ -123,6 +128,64 @@ impl Grid {
         } else if y > 0 {
             result.push((x, y-1));
         }
+        // Larger neighbourhood (cells touching just by a point)
+        // Common to both cases:
+        // (x-1, y-1), (x+1, y-1)
+        // (x-2, y), (x+2, y),
+        // (x-1, y+1), (x+1, y+1)
+        if y > 0 {
+            if x > 0 {
+                result.push((x-1, y-1));
+            }
+            if x+1 < self.width {
+                result.push((x+1, y-1));
+            }
+        }
+        if x > 1 {
+            result.push((x-2, y));
+        }
+        if x+2 < self.width {
+            result.push((x+2, y));
+        }
+        if y+1 < self.height {
+            if x > 0 {
+                result.push((x-1, y+1));
+            }
+            if x+1 < self.width {
+                result.push((x+1, y+1));
+            }
+        }
+        if (x + y) % 2 == 0 {
+            // Need also:
+            // (x, y-1)
+            // (x-2, y+1), (x+2, y+1)
+            if y > 0 {
+                result.push((x, y-1));
+            }
+            if y+1 < self.height {
+                if x > 1 {
+                    result.push((x-2, y+1));
+                }
+                if x+2 < self.width {
+                    result.push((x+2, y+1));
+                }
+            }
+        } else {
+            // Need also:
+            // (x-2, y-1), (x+2, y-1)
+            // (x, y+1)
+            if y > 0 {
+                if x > 1 {
+                    result.push((x-2, y-1));
+                }
+                if x+2 < self.width {
+                    result.push((x+2, y-1));
+                }
+            }
+            if y+1 < self.height {
+                result.push((x, y+1));
+            }
+        }
         result
     }
 
@@ -169,7 +232,8 @@ impl Grid {
             let font = dc.ttf_context.load_font("./resources/DejaVuSans.ttf", 50).unwrap();
             for line in self.cells.iter() {
                 for cell in line.iter() {
-                    let mut color = if cell.marked {
+                    let grey = Color::RGB(127, 127, 127);
+                    let bg_color = if cell.marked {
                         Color::RGB(255, 0, 0)
                     } else if cell.revealed {
                         Color::RGB(255, 255, 255)
@@ -178,10 +242,10 @@ impl Grid {
                     };
                     let as2 = (f64::from(CELL_WIDTH) / f64::from(2).sqrt()) as u32;
                     let offset = if (cell.x + cell.y) % 2 == 0 {
-                        draw_up_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, color);
+                        draw_up_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, grey, Some(bg_color));
                         CELL_WIDTH/4
                     } else {
-                        draw_down_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, color);
+                        draw_down_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, grey, Some(bg_color));
                         0
                     };
                     // TODO: Use cute pictures for mines & marks
@@ -195,6 +259,20 @@ impl Grid {
                         let nb = font.render(&cell.neighbours.to_string()).solid(self.colors[cell.neighbours-1]).unwrap();
                         let nb = dc.texture_creator.create_texture_from_surface(nb).unwrap();
                         dc.canvas.copy(&nb, None, sdl2::rect::Rect::new((cell.x * CELL_WIDTH/2 + CELL_WIDTH/4) as i32, (cell.y * as2 + offset) as i32, CELL_WIDTH/2, CELL_WIDTH/2)).expect("Rendering number failed");
+                    }
+                }
+            }
+            for line in self.cells.iter() {
+                for cell in line.iter() {
+                    if cell.over {
+                        let over_color = Color::RGB(255, 0, 255);
+                        let bg_over_color = Some(Color::RGBA(255, 0, 255, 64));
+                        let as2 = (f64::from(CELL_WIDTH) / f64::from(2).sqrt()) as u32;
+                        if (cell.x + cell.y) % 2 == 0 {
+                            draw_up_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, over_color, bg_over_color);
+                        } else {
+                            draw_down_triangle(dc, (cell.x*CELL_WIDTH/2) as i16, (cell.y*as2) as i16, CELL_WIDTH as i16, over_color, bg_over_color);
+                        }
                     }
                 }
             }
@@ -231,6 +309,20 @@ impl Grid {
         self.phase = GamePhase::Won;
     }
 
+    fn reset_over(&mut self) {
+        for line in self.cells.iter_mut() {
+            for cell in line.iter_mut() {
+                cell.over = false;
+            }
+        }
+    }
+
+    fn over(&mut self, x: usize, y: usize) {
+        if (x as u32) < self.width && (y as u32) < self.height {
+            self.cells[x][y].over = true;
+        }
+    }
+
     fn mark(&mut self, x: usize, y: usize) {
         let cell = &mut self.cells[x][y];
         if ! cell.revealed {
@@ -261,22 +353,24 @@ impl Grid {
     }
 }
 
-fn draw_up_triangle(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color) {
+fn draw_up_triangle(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color, bg_color: Option<Color>) {
     let as2 = (f64::from(a) / f64::from(2).sqrt()) as i16;
     let xs = [x, x+a, x+a/2];
     let ys = [y+as2, y+as2, y];
-    dc.canvas.filled_polygon(&xs, &ys, color).unwrap();
-    let grey = Color::RGB(127, 127, 127);
-    dc.canvas.polygon(&xs, &ys, grey).unwrap();
+    if let Some(bg_color) = bg_color {
+        dc.canvas.filled_polygon(&xs, &ys, bg_color).unwrap();
+    }
+    dc.canvas.polygon(&xs, &ys, color).unwrap();
 }
 
-fn draw_down_triangle(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color) {
+fn draw_down_triangle(dc: &DrawingContext, x: i16, y: i16, a: i16, color: Color, bg_color: Option<Color>) {
     let as2 = (f64::from(a) / f64::from(2).sqrt()) as i16;
     let xs = [x, x+a, x+a/2];
     let ys = [y, y, y+as2];
-    dc.canvas.filled_polygon(&xs, &ys, color).unwrap();
-    let grey = Color::RGB(127, 127, 127);
-    dc.canvas.polygon(&xs, &ys, grey).unwrap();
+    if let Some(bg_color) = bg_color {
+        dc.canvas.filled_polygon(&xs, &ys, bg_color).unwrap();
+    }
+    dc.canvas.polygon(&xs, &ys, color).unwrap();
 }
 
 struct DrawingContext {
@@ -325,11 +419,14 @@ fn grey_background(canvas: &mut Canvas<Window>) {
 }
 
 // TODO: More accurate way to compute coord from mouse pos
-fn coord_to_pos(x: i32, y: i32) -> (usize, usize) {
+fn coord_to_pos(x: i32, y: i32) -> Option<(usize, usize)> {
+    if x < (CELL_WIDTH as i32) / 4 || y < 0 {
+        return None;
+    }
     let as2 = (f64::from(CELL_WIDTH) / f64::from(2).sqrt()) as u32;
     let i = ((2*x as u32 - CELL_WIDTH/2) / CELL_WIDTH) as usize;
     let j = (y as u32 / as2) as usize;
-    (i, j)
+    Some((i, j))
 }
 
 // TODO: timer
@@ -353,18 +450,29 @@ fn main() {
                 },
                 Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Left, x, y, .. } => {
                     if ! grid.finished() {
-                        let (i, j) = coord_to_pos(x, y);
-                        grid.reveal(i, j);
-                        grid.check_win();
+                        if let Some((i, j)) = coord_to_pos(x, y) {
+                            grid.reveal(i, j);
+                            grid.check_win();
+                        }
                     }
                 },
                 Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Right, x, y, .. } => {
                     if ! grid.finished() {
-                        let (i, j) = coord_to_pos(x, y);
-                        grid.mark(i, j);
+                        if let Some((i, j)) = coord_to_pos(x, y) {
+                            grid.mark(i, j);
+                        }
                     }
                 },
                 _ => {}
+            }
+        }
+
+        let state = event_pump.mouse_state();
+        grid.reset_over();
+        if let Some((i, j)) = coord_to_pos(state.x(), state.y()) {
+            grid.over(i, j);
+            for (x, y) in grid.neighbours(i as u32, j as u32) {
+                grid.over(x as usize, y as usize);
             }
         }
 

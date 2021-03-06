@@ -18,8 +18,8 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::f64::consts::PI;
 
-const SCREEN_WIDTH : u32 = 2000;
-const SCREEN_HEIGHT : u32 = 1400;
+const SCREEN_WIDTH : u32 = 1000;
+const SCREEN_HEIGHT : u32 = 1000;
 
 fn white_background(canvas: &mut Canvas<Window>) {
     let white = Color::RGB(255, 255, 255);
@@ -36,6 +36,9 @@ fn create_tree(tree_params: &TreeParams) -> Tree {
 fn help() {
     println!("Commands available:");
     println!(" - H: help: display this in the console");
+    println!(" - I: info: display current tree params in the console");
+    println!(" - F: fall: make the leaves fall");
+    println!(" - T: toggler leaves: with or without leaves");
     println!(" - P: plus: increase the ratio of child size over parent size");
     println!(" - M: minus: decrease the ratio of child size over parent size");
     println!(" - W: wider: increase the angle");
@@ -44,6 +47,7 @@ fn help() {
     println!(" - S: smaller: decrease branches size");
     println!(" - R: randomer: increase randomness");
     println!(" - D: determinister: decrease randomness");
+    println!(" - Up/Down: increase/decrease the max number of generations");
 }
 
 fn main() {
@@ -54,7 +58,9 @@ fn main() {
         ratio: 0.75,
         angle: PI/4.0,
         size: 200.0,
-        randomness: 0.1,
+        randomness: 0.0,
+        leaves: false,
+        max_generations: 0,
     };
     let mut tree = create_tree(&tree_params);
     let mut event_pump = dc.sdl_context.event_pump().unwrap();
@@ -118,6 +124,27 @@ fn main() {
                 },
                 Event::KeyDown { keycode: Some(Keycode::F), .. } => {
                     tree.falling_leaves();
+                },
+                Event::KeyDown { keycode: Some(Keycode::T), .. } => {
+                    tree_params.leaves = !tree_params.leaves;
+                    tree = create_tree(&tree_params);
+                },
+                Event::KeyDown { keycode: Some(Keycode::I), .. } => {
+                    println!("Tree params: {:#?}", tree_params);
+                },
+                Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
+                    // Safeguard: do not allow to have more than 13 generations as this makes too
+                    // many objects after that.
+                    if tree_params.max_generations < 13 {
+                        tree_params.max_generations += 1;
+                        tree = create_tree(&tree_params);
+                    }
+                },
+                Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+                    if tree_params.max_generations > 0 {
+                        tree_params.max_generations -= 1;
+                        tree = create_tree(&tree_params);
+                    }
                 },
                 _ => {}
             }

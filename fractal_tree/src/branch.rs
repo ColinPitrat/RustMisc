@@ -63,9 +63,9 @@ impl Branch {
         }
     }
 
-    pub fn children(&mut self, ratio: f64, angle: f64) -> Vec<Branch>{
-        // Safeguard: prevent creating more than 12 generations (8k branches)
-        if self.child_created || (ratio*self.thickness) < 1.0 || self.generation > 12 {
+    pub fn children(&mut self, ratio: f64, angle: f64, max_generations: isize) -> Vec<Branch>{
+        // Safeguard: prevent creating more than max_generations generations
+        if self.child_created || (ratio*self.thickness) < 1.0 || self.generation >= max_generations {
             vec!()
         } else {
             vec!(

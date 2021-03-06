@@ -59,7 +59,7 @@ $ avconv -i screenshots/%06d.png -r 100 -y -an replay.mp4
 ```
 
 It requires files to be named consecutively (no gap).
-With `-r` providing the delay between framse, `-y` overwriting if output file exists and `-an` deactivating audio.
+With `-r` providing the delay between frames, `-y` overwriting if output file exists and `-an` deactivating audio.
 It's also possible to start with an offset with `-start_number`
 
 Resulting file weight 3GiB for 2000 pictures in 2000x1400 (cell width at 1).

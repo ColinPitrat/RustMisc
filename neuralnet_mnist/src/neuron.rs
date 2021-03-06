@@ -33,9 +33,11 @@ impl Neuron {
     pub fn new(nb_inputs: usize, activation: Rc<Box<dyn ActivationFunction>>, average_gradient: bool) -> Neuron {
         let mut rng = rand::thread_rng();
         let weights: Vec<f64> = (0..nb_inputs).map(|_| {
-            rng.gen::<f64>()*2.0 - 1.0 // A number between -1.0 and 1.0
+            //rng.gen::<f64>()*2.0 - 1.0 // A number between -1.0 and 1.0
+            rng.gen::<f64>()*0.1 // A number between -1.0 and 1.0
         }).collect();
-        let bias = rng.gen::<f64>()*2.0 - 1.0;
+        //let bias = rng.gen::<f64>()*2.0 - 1.0;
+        let bias = 0.0;
 
         // Back propagation members are all initialized empty/0
         let last_input = vec!();
@@ -49,6 +51,10 @@ impl Neuron {
             last_input, last_value,
             dw, da, db, nb_evals,
         }
+    }
+
+    pub fn to_string(&self) -> String {
+        format!("inputs={} bias={} weights={:?} act={:?}", self.nb_inputs, self.bias, self.weights, self.activation.name())
     }
 
     pub fn output(&mut self, previous_layer_values: Vec<f64>, for_training: bool) -> f64 {
@@ -76,8 +82,10 @@ impl Neuron {
         self.nb_evals += 1;
         let delta = 2.0*error * self.activation.derivative(self.last_value);
         self.db += delta * learning_rate;
+        //println!("error = {}, delta = {}, db = {}", error, delta, self.db);
         for i in 0..self.nb_inputs {
             self.dw[i] += delta*self.last_input[i]*learning_rate;
+            //println!("self.dw[{}] = {}", i, self.dw[i]);
             self.da[i] += delta*self.weights[i];
         }
         self.da.clone()
@@ -89,9 +97,11 @@ impl Neuron {
         if self.average_gradient {
             denominator = self.nb_evals as f64;
         }
+        //println!("self.db = {}", self.db);
         self.bias += self.db / denominator;
         for i in 0..self.nb_inputs {
             self.weights[i] += self.dw[i] / denominator;
+            //println!("self.dw[{}] = {}", i, self.dw[i]);
         }
         self.prepare_backprop()
     }
