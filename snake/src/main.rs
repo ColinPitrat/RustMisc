@@ -4,12 +4,15 @@ extern crate rand;
 use rand::Rng;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::mixer::{InitFlag, AUDIO_S16LSB, DEFAULT_CHANNELS};
+use sdl2::mixer::{InitFlag, AUDIO_S16LSB, DEFAULT_CHANNELS, MAX_VOLUME};
 use sdl2::pixels::Color;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::collections::LinkedList;
-use std::time::SystemTime;
+use std::path::PathBuf;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime};
+use std::vec::Vec;
 
 const CELL_SIZE : i32 = 20;
 const GRID_WIDTH : i32 = 40;
@@ -83,6 +86,25 @@ fn black_background(canvas: &mut Canvas<Window>) {
     canvas.clear();
 }
 
+fn list_musics() -> Vec<PathBuf> {
+    std::fs::read_dir("resources/musics/").unwrap()
+        .map(|res| res.map(|e| e.path()).unwrap())
+        .collect::<Vec<_>>()
+}
+
+// TODO: Move all the music logic into a "Jukebox" type
+fn play_current_music(musics: &Vec<PathBuf>, current_music: usize) -> Option<sdl2::mixer::Music> {
+    if current_music < musics.len() {
+        let path = musics[current_music].clone();
+        println!("Playing {:?}", path);
+        let music = sdl2::mixer::Music::from_file(path).unwrap();
+        music.play(1).unwrap();
+        Some(music)
+    } else {
+        None
+    }
+}
+
 fn main() {
     let sdl_context = sdl2::init().unwrap();
 
@@ -102,13 +124,25 @@ fn main() {
     let _mixer_context = sdl2::mixer::init(InitFlag::MP3 | InitFlag::FLAC | InitFlag::MOD | InitFlag::OGG).unwrap();
     // 4 channels should be more than enough for everybody
     sdl2::mixer::allocate_channels(4);
-    let target_eaten_sound = sdl2::mixer::Music::from_file("resources/sounds/eaten.wav").unwrap();
+    let mut target_eaten_sound = sdl2::mixer::Chunk::from_file("resources/sounds/eaten.wav").unwrap();
+    target_eaten_sound.set_volume(MAX_VOLUME);
+    let musics = list_musics();
+    let mut current_music = 0;
+    let mut music = play_current_music(&musics, current_music);
+    // TODO: Make music & sound effects volumes configurable
+    sdl2::mixer::Music::set_volume(2*MAX_VOLUME/10);
 
     let mut snake = Snake::new();
     let mut target = Target::new();
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'game_loop: loop {
+        if let Some(_) = music {
+            if !sdl2::mixer::Music::is_playing() {
+                current_music = (current_music + 1) % musics.len();
+                music = play_current_music(&musics, current_music);
+            }
+        }
         // Forcing move after direction change prevents bug leading to death when 2 direction
         // change are done very quickly (e.g left then down while going up)
         let mut force_move = false;
@@ -159,9 +193,17 @@ fn main() {
                     }
                     new_head.x = (new_head.x + GRID_WIDTH) % GRID_WIDTH;
                     new_head.y = (new_head.y + GRID_HEIGHT) % GRID_HEIGHT;
+                    if snake.segments.iter().any(|&s| s == new_head) {
+                        println!("Game over!");
+                        // TODO: Better game over
+                        sleep(Duration::new(2, 0));
+                        music = play_current_music(&musics, current_music);
+                        snake = Snake::new();
+                        target = Target::new();
+                    }
                     if new_head == target.pos {
                         snake.score += target.points;
-                        target_eaten_sound.play(1).unwrap();
+                        sdl2::mixer::Channel::all().play(&target_eaten_sound, 0).unwrap();
                         target = Target::new();
                     } else {
                         snake.segments.pop_front();
