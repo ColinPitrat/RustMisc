@@ -194,7 +194,7 @@ fn main() {
                     new_head.x = (new_head.x + GRID_WIDTH) % GRID_WIDTH;
                     new_head.y = (new_head.y + GRID_HEIGHT) % GRID_HEIGHT;
                     if snake.segments.iter().any(|&s| s == new_head) {
-                        println!("Game over!");
+                        println!("Game over! Score: {}", snake.score);
                         // TODO: Better game over
                         sleep(Duration::new(2, 0));
                         music = play_current_music(&musics, current_music);
