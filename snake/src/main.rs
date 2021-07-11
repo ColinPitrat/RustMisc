@@ -200,15 +200,16 @@ fn main() {
                         music = play_current_music(&musics, current_music);
                         snake = Snake::new();
                         target = Target::new();
-                    }
-                    if new_head == target.pos {
-                        snake.score += target.points;
-                        sdl2::mixer::Channel::all().play(&target_eaten_sound, 0).unwrap();
-                        target = Target::new();
                     } else {
-                        snake.segments.pop_front();
+                        if new_head == target.pos {
+                            snake.score += target.points;
+                            sdl2::mixer::Channel::all().play(&target_eaten_sound, 0).unwrap();
+                            target = Target::new();
+                        } else {
+                            snake.segments.pop_front();
+                        }
+                        snake.segments.push_back(new_head);
                     }
-                    snake.segments.push_back(new_head);
                 }
             },
             Err(e) => println!("Error calculating time since last move: {:?}", e),
