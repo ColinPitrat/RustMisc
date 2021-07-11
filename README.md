@@ -15,3 +15,6 @@ Well, prints 'Hello, world !'
 
 ## model
 A model of a rust directory with unit tests (in the code itself, allowed to test private functions) and integration tests (in tests subdirectory, only able to test public interface).
+
+## snake
+A snake game
