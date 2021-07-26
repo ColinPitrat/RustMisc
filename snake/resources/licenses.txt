@@ -1,2 +1,5 @@
 resources/sounds/eaten.wav: CC0 - https://freesound.org/people/suntemple/sounds/253172/
-resources/musics/happy-8bit-pixel-adenture.wav: CC0 - https://freesound.org/people/edtijo/sounds/240376/
+resources/musics/happy-8bit-pixel-adenture.ogg: CC0 - https://freesound.org/people/edtijo/sounds/240376/
+resources/musics/eciffo.ogg: CC0 - https://freesound.org/people/edtijo/sounds/240028/
+resources/musics/happy-guitar.ogg: CC0 - https://freesound.org/people/edtijo/sounds/207558/
+resources/musics/worthless-scavenger.ogg: CC0 - https://freesound.org/people/edtijo/sounds/218500/
