@@ -16,5 +16,8 @@ Well, prints 'Hello, world !'
 ## model
 A model of a rust directory with unit tests (in the code itself, allowed to test private functions) and integration tests (in tests subdirectory, only able to test public interface).
 
+## ttf
+A parser for TTF files. This was just to understand how font works and playing with drawing Bezier curves.
+
 ## snake
 A snake game
