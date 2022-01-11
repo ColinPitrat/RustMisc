@@ -1,0 +1,19 @@
+[package]
+name = "ttf"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+argh = "0.1.4"
+bitflags = "1.3.2"
+chrono = "0.4.19"
+fixed = "1.10.0"
+nom = "6"
+num_enum = "0.5.1"
+
+[dependencies.sdl2]
+version = "0.31"
+default-features = false
+features = ["ttf", "image", "gfx"]
