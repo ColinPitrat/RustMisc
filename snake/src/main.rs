@@ -17,6 +17,7 @@ use std::collections::LinkedList;
 use std::error::Error;
 use std::fs;
 use std::path::{Path,PathBuf};
+use std::str::FromStr;
 use std::thread::sleep;
 use std::time::{Duration, SystemTime};
 use std::vec::Vec;
@@ -164,12 +165,12 @@ struct Game {
 }
 
 impl Game {
-    fn new() -> Game {
+    fn new(start_level: usize) -> Game {
         // TODO: This is dirty: the game is created in an invalid state because the snake is not in
         // the right position. We have to call reset on it.
         let mut g = Game {
             levels: Level::load_levels(),
-            level_idx: 0,
+            level_idx: start_level,
             snake: Snake::new(Position::new(0,0)),
             target: Target::new(),
         };
@@ -287,9 +288,65 @@ fn generate_levels() {
         let level4 = Level{name: "level4".to_string(), obstacles, start_pos: Position::new(0, 0)};
         level4.save(&PathBuf::from("resources/levels/level4"));
     }
+    // Level 5 is a spiral
+    {
+        let passage_width = 5;
+        let wall_width = 1;
+        let width = passage_width + wall_width;
+        let mut length = width;
+        let mut obstacles = vec!();
+        let mut x = (GRID_WIDTH-1)/2;
+        let mut y = (GRID_HEIGHT-width)/2;
+        let mut next_x = x;
+        let mut next_y = y + width;
+        let mut direction = 1;
+        while length < std::cmp::min(GRID_WIDTH, GRID_HEIGHT) {
+            while x != next_x || y != next_y {
+                for i in 0..wall_width {
+                    for j in 0..wall_width {
+                        obstacles.push(Obstacle{pos: Position::new(x+i, y+j), color: blue});
+                    }
+                }
+                if x < next_x {
+                    x += wall_width;
+                }
+                if x > next_x {
+                    x -= wall_width;
+                }
+                if y < next_y {
+                    y += wall_width;
+                }
+                if y > next_y {
+                    y -= wall_width;
+                }
+            }
+            match direction % 4 {
+                0 => {
+                    next_y += length;
+                }
+                1 => {
+                    next_x += length;
+                    length += width;
+                }
+                2 => {
+                    next_y -= length;
+                }
+                3 => {
+                    next_x -= length;
+                    length += width;
+                }
+                x => {
+                    panic!("Unexpected modulo result: {}", x);
+                }
+            }
+            direction += 1;
+        }
+        let level5 = Level{name: "level5".to_string(), obstacles, start_pos: Position::new(0, 0)};
+        level5.save(&PathBuf::from("resources/levels/level5"));
+    }
 }
 
-fn game() -> Result<(), Box<dyn Error>> {
+fn game(start_level: usize) -> Result<(), Box<dyn Error>> {
     let sdl_context = sdl2::init().unwrap();
 
     let video_subsystem = sdl_context.video().unwrap();
@@ -316,7 +373,7 @@ fn game() -> Result<(), Box<dyn Error>> {
     // TODO: Make music & sound effects volumes configurable
     sdl2::mixer::Music::set_volume(2*MAX_VOLUME/10);
 
-    let mut game = Game::new();
+    let mut game = Game::new(start_level);
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'game_loop: loop {
@@ -430,6 +487,15 @@ fn game() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn is_type<T: FromStr>(val: String) -> Result<(), String>
+where <T as std::str::FromStr>::Err : std::string::ToString
+{
+    match val.parse::<T>() {
+        Ok(_) => Ok(()),
+        Err(m) => Err(m.to_string()),
+    }
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Snake")
         .version("0.1")
@@ -439,10 +505,19 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .short("G")
                 .long("generate_levels")
                 .help("Regenerate the programmatically generated levels."))
+        .arg(Arg::with_name("level")
+                .short("l")
+                .long("level")
+                .value_name("NUMBER")
+                .help("Starting level")
+                .takes_value(true)
+                .default_value("0")
+                .validator(is_type::<usize>))
         .get_matches();
     if matches.is_present("generate_levels") {
         generate_levels();
-        return Ok(());
     }
-    game()
+    // TODO: Validate that level is valid (0 < level < max_level) (or better, only allow level
+    // selection in game)
+    game(matches.value_of("level").unwrap().parse::<usize>().unwrap())
 }
