@@ -1,16 +1,10 @@
+use derive_more::Display;
 use std::error::Error;
-use std::fmt;
 use std::fs::File;
 use std::io::{self, BufRead};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Display, Clone)]
 struct MoveCodeError(String);
-
-impl fmt::Display for MoveCodeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
 
 impl Error for MoveCodeError {}
 
@@ -88,8 +82,8 @@ fn score_move(my_move: &Move) -> i64 {
 }
 
 fn main() -> Result<(), Box<dyn Error>>  {
-    //let filename = "sample.txt";
-    let filename = "my_input.txt";
+    let filename = "sample.txt";
+    //let filename = "my_input.txt";
     let file = File::open(filename)?;
     let lines = io::BufReader::new(file).lines();
 
