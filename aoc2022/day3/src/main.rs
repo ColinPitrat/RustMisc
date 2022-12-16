@@ -16,8 +16,8 @@ fn element_priority(c: char) -> i64 {
 }
 
 fn main() -> Result<(), Box<dyn Error>>  {
-    //let filename = "sample.txt";
-    let filename = "my_input.txt";
+    let filename = "sample.txt";
+    //let filename = "my_input.txt";
 
 		// Part 1
 		{
