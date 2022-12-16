@@ -4,8 +4,8 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    //let filename = "sample.txt";
-    let filename = "my_input.txt";
+    let filename = "sample.txt";
+    //let filename = "my_input.txt";
 
     let file = File::open(filename)?;
     let lines = io::BufReader::new(file).lines();
