@@ -1,7 +1,5 @@
 use std::error::Error;
 use std::fs;
-//use std::fs::File;
-//use std::io::{self, BufRead};
 
 #[derive(Debug)]
 struct Elf {
@@ -13,10 +11,8 @@ fn main() -> Result<(), Box<dyn Error>>  {
     let mut elves = vec!();
     let mut elf_id = 1;
 
-    //let filename = "sample.txt";
-    let filename = "my_input.txt";
-    //let file = File::open("sample.txt")?;
-    //let lines = io::BufReader::new(file).lines();
+    let filename = "sample.txt";
+    //let filename = "my_input.txt";
     let content = fs::read_to_string(filename)?;
 
     for elf_content in content.split("\n\n") {
