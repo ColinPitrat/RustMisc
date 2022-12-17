@@ -62,8 +62,8 @@ fn score(i: usize, j: usize, map: &Vec<Vec<i32>>) -> i32 {
 }
 
 fn main() -> Result<(), Box<dyn Error>>  {
-    //let filename = "sample.txt";
-    let filename = "my_input.txt";
+    let filename = "sample.txt";
+    //let filename = "my_input.txt";
 
     let file = File::open(filename)?;
     let lines = io::BufReader::new(file).lines();
