@@ -326,8 +326,7 @@ fn main() -> Result<(), Box<dyn Error>>  {
     println!("{:?}", chamber);
     //chamber.print();
 
-    //for i in 0..2022 {
-    for i in 0..100000000 {
+    for i in 0..2022 {
         chamber.drop_one();
         //chamber.print();
     }
