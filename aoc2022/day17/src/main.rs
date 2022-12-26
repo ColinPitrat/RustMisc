@@ -1,34 +1,7 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead};
-
-// Width = 7
-// Block appears: 
-//   left edge two units away from the left wall 
-//   bottom edge is three units above the highest point
-// Each round:
-//   be pushed by next jet - collision blocks movement
-//   go down one unit - collision stops block, next block starts to fall
-//
-// Shapes
-//
-// ####
-//
-// .#.
-// ###
-// .#.
-//
-// ..#
-// ..#
-// ###
-//
-// #
-// #
-// #
-// #
-//
-// ##
-// ##
 
 #[derive(Clone,Copy,Debug)]
 struct Position {
@@ -156,6 +129,14 @@ struct Chamber {
     jets: Vec<Direction>,
     jet_idx: usize,
     grid: Vec<Vec<Cell>>,
+    last_block_pos: i64,
+}
+
+#[derive(Clone,Debug,Eq,Hash,PartialEq)]
+struct State {
+    block_idx: usize,
+    jet_idx: usize,
+    last_block_pos: i64
 }
 
 impl Chamber {
@@ -187,6 +168,7 @@ impl Chamber {
             jets,
             jet_idx: 0,
             grid,
+            last_block_pos: 0,
         }
     }
 
@@ -208,6 +190,14 @@ impl Chamber {
             print!("-");
         }
         println!("+");
+    }
+
+    fn state(&self) -> State {
+        State {
+            block_idx: self.block_idx,
+            jet_idx: self.jet_idx,
+            last_block_pos: self.last_block_pos,
+        }
     }
 
     fn drop_one(&mut self) {
@@ -294,6 +284,7 @@ impl Chamber {
                 falling.y = new_y;
             }
         }
+        self.last_block_pos = falling.x;
         //self.print();
         let mut max_y = 0;
         for p in falling.block.cells {
@@ -317,6 +308,12 @@ impl Chamber {
 fn main() -> Result<(), Box<dyn Error>>  {
     let filename = "sample.txt";
     //let filename = "my_input.txt";
+    //let part = 1;
+    let part = 2;
+    // Part 1 of sample.txt: 3068
+    // Part 1 of my_input.txt: 3239
+    // Part 2 of sample.txt: 1514285714288
+    // Part 2 of my_input.txt: 1594842406882
 
     let file = File::open(filename)?;
     let mut lines = io::BufReader::new(file).lines();
@@ -325,14 +322,82 @@ fn main() -> Result<(), Box<dyn Error>>  {
 
     println!("{:?}", chamber);
     //chamber.print();
+    let mut history = HashMap::new();
+    let mut heights = vec!();
+    let mut states = vec!();
 
-    for i in 0..2022 {
+    let mut in_loop = false;
+    let mut height_before_loop = 0;
+    let mut iterations_before_loop = 0;
+    let mut loop_height = 0;
+    let mut loop_iterations = 0;
+
+    //let one_by_one_iterations = 2022;
+    let one_by_one_iterations = 10000;
+
+    //for i in 0..2022 {
+    for i in 0..one_by_one_iterations {
+    //for i in 0..100 {
         chamber.drop_one();
+        let s = chamber.state();
+        let h = chamber.height - MAX_BLOCK_HEIGHT - BLOCK_Y_MARGIN;
+        // TODO: This is cheating, but the first match is not actually a loop!
+        // We'd need to check that the whole loop is repeating and continue if not.
+        // The first 4 iterations match but the 5th is actually different!
+        if history.contains_key(&s) {
+            if in_loop {
+                if states[(i-loop_iterations) as usize] != s {
+                    in_loop = false;
+                }
+            } else {
+                in_loop = true;
+                println!("Looping for first time: {} -> height = {}", i, h);
+                let (prev_i, prev_h) = history[&s];
+                iterations_before_loop = prev_i + 1 as i64;
+                //let iterations_end_loop = i as i64;
+                let height_end_loop = h; //heights[(iterations_end_loop-1) as usize];
+                height_before_loop = heights[prev_i as usize];
+                loop_height = height_end_loop-height_before_loop;
+                loop_iterations = i-prev_i;
+                println!("Previous iteration: {} -> height = {} -> loop iterations = {}, loop height = {}", prev_i, prev_h, loop_iterations, loop_height);
+            }
+        }
+        history.insert(s.clone(), (i, h));
+        states.push(s);
+        heights.push(h);
+        println!("{}: {:?} - height: {}", i, chamber.state(), h);
         //chamber.print();
     }
+
+    let mut iterations = 2022;
+		if part == 2 {
+				iterations = 1000000000000;
+		}
+    let nb_loops = (iterations-iterations_before_loop)/loop_iterations;
+    let iterations_in_loops = nb_loops*loop_iterations;
+    let height_in_loops = nb_loops*loop_height;
+    let iterations_after_loops = iterations - iterations_in_loops - iterations_before_loop;
+    let height_after_loops = heights[(iterations_after_loops + loop_iterations + iterations_before_loop - 1) as usize] - heights[(loop_iterations + iterations_before_loop - 1) as usize];
+    let total_height = height_before_loop + height_in_loops + height_after_loops;
+
+    println!("Iterations: {} before loops, {} loops of {} each for a total of {}, {} after loops", iterations_before_loop, nb_loops, loop_iterations, iterations_in_loops, iterations_after_loops);
+    println!("Loop height: {}", loop_height);
+    println!("Tower is {} tall ({} before loops, {} in loops and {} after loops)", total_height, height_before_loop, height_in_loops, height_after_loops);
+
+    if iterations <= one_by_one_iterations {
+        for i in [
+           iterations_before_loop - 1,
+           loop_iterations + iterations_before_loop - 1,
+           nb_loops*loop_iterations + iterations_before_loop - 1,
+           iterations_after_loops + nb_loops*loop_iterations + iterations_before_loop - 1,
+           iterations_after_loops + loop_iterations + iterations_before_loop - 1,
+        ] {
+            println!("Height at {}: {}", i, heights[i as usize]);
+        }
+    }
+
     //chamber.print();
 
-    println!("Tower is {} tall", chamber.height - MAX_BLOCK_HEIGHT - BLOCK_Y_MARGIN);
 
     Ok(())
 }
