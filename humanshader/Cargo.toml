@@ -1,0 +1,19 @@
+[package]
+# Replicate https://humanshader.com
+name = "humanshader"
+version = "0.1.0"
+authors = ["Colin Pitrat <colin.pitrat@gmail.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dependencies.sdl2]
+version = "0.31"
+default-features = false
+features = ["ttf", "image", "gfx"]
+
+[profile.release]
+# Set to true for profiling with perf or valgrind
+debug=false
