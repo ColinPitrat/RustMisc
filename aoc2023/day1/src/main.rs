@@ -4,7 +4,7 @@ use std::fs;
 use std::sync::{LazyLock,RwLock};
 
 #[derive(Clone, Default, FromArgs)]
-/// Solve day 2 of Advent of Code 2024.
+/// Solve day 1 of Advent of Code 2023.
 struct Day1Opts {
     /// the file to use as input
     #[argh(option)]

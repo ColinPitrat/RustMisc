@@ -6,7 +6,7 @@ use std::fs;
 use std::sync::{LazyLock,RwLock};
 
 #[derive(Clone, Default, FromArgs)]
-/// Solve day 2 of Advent of Code 2024.
+/// Solve day 3 of Advent of Code 2023.
 struct Day3Opts {
     /// the file to use as input
     #[argh(option)]
@@ -84,7 +84,7 @@ impl fmt::Display for Grid {
 }
 
 impl Grid {
-    fn read_string(content: &str) -> Result<Grid, Box<dyn Error>> {
+    fn read_string(content: &str) -> Result<Self, Box<dyn Error>> {
         let mut cells = vec!();
         for line in content.split("\n") {
             let mut row = vec!();
@@ -156,12 +156,9 @@ impl Grid {
         let mut numbers = vec!();
         for (y, line) in self.cells.iter().enumerate() {
             for (x, cell) in line.iter().enumerate() {
-                if let Cell::Part{desc} = cell {
+                if let Cell::Part{desc: _} = cell {
                     for &number in self.find_number_around(x as i32, y as i32).iter() {
                         numbers.push(number);
-                        if number == 989 {
-                            log_verbose!("989 found near {desc}");
-                        }
                     }
                 }
             }
@@ -209,6 +206,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_format() {
+        let content = "123...\n..$...\n";
+        let grid = Grid::read_string(content).unwrap();
+        assert_eq!("  123  123  123    .    .    .\n    .    .    $    .    .    .\n\n", format!("{}", grid));
+    }
 
     #[test]
     fn test_number_at_start_of_line() {
@@ -312,6 +316,24 @@ mod tests {
         let content = ".12*3...\n.......5\n......7*";
         let grid = Grid::read_string(content).unwrap();
         assert_eq!(vec!(35, 36), grid.find_gear_ratios());
+    }
+
+    #[test]
+    fn test_sum_gear_ratios() {
+        // Single number next to a star: not a gear
+        let content = ".12*....\n........";
+        let grid = Grid::read_string(content).unwrap();
+        assert_eq!(0, grid.gear_ratios_sum());
+
+        // A single gear.
+        let content = ".12*3...\n........";
+        let grid = Grid::read_string(content).unwrap();
+        assert_eq!(36, grid.gear_ratios_sum());
+
+        // Multiple gears
+        let content = ".12*3...\n.......5\n......7*";
+        let grid = Grid::read_string(content).unwrap();
+        assert_eq!(71, grid.gear_ratios_sum());
     }
 
     #[test]
