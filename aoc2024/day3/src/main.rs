@@ -470,4 +470,11 @@ mod tests {
         assert_eq!(161, add_mul_file("sample2.txt").unwrap());
         assert_eq!(48, add_mul_do_file("sample2.txt").unwrap());
     }
+
+    #[test]
+    fn test_sample_with_nom() {
+        assert_eq!(161, nom_mul_file("sample1.txt").unwrap());
+        assert_eq!(161, nom_mul_file("sample2.txt").unwrap());
+        assert_eq!(48, nom_mul_do_file("sample2.txt").unwrap());
+    }
 }

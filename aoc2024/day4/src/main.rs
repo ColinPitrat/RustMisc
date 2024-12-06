@@ -27,18 +27,18 @@ struct Day4Opts {
 static OPTIONS: LazyLock<RwLock<Option<Day4Opts>>> = std::sync::LazyLock::new(|| RwLock::new(None));
 
 impl Day4Opts {
-    fn get_opts() -> Day4Opts {
+    fn get_opts() -> Self {
         let o = OPTIONS.read().unwrap();
         if let Some(opts) = o.as_ref() {
             opts.clone()
         } else {
-            Day4Opts{
+            Self{
                 ..Default::default()
             }
         }
     }
 
-    fn set_opts(opts: Day4Opts) {
+    fn set_opts(opts: Self) {
         let mut o = OPTIONS.write().unwrap();
         *o = Some(opts);
     }
