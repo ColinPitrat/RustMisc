@@ -6,8 +6,8 @@ use std::fs;
 use std::sync::{LazyLock,RwLock};
 
 #[derive(Clone, Default, FromArgs)]
-/// Solve day 2 of Advent of Code 2024.
-struct Day5Opts {
+/// Solve day 6 of Advent of Code 2024.
+struct Day6Opts {
     /// the file to use as input
     #[argh(option)]
     filename: String,
@@ -19,11 +19,11 @@ struct Day5Opts {
 
 // A static OPTIONS used to provide access to options like 'verbose' everywhere without needing to
 // pass it to all functions.
-// Ideally this should be private in a separate crate together with Day5Opts definition so that
+// Ideally this should be private in a separate crate together with Day6Opts definition so that
 // this can only be accessed through get_opts & set_opts.
-static OPTIONS: LazyLock<RwLock<Option<Day5Opts>>> = std::sync::LazyLock::new(|| RwLock::new(None));
+static OPTIONS: LazyLock<RwLock<Option<Day6Opts>>> = std::sync::LazyLock::new(|| RwLock::new(None));
 
-impl Day5Opts {
+impl Day6Opts {
     fn get_opts() -> Self {
         let o = OPTIONS.read().unwrap();
         if let Some(opts) = o.as_ref() {
@@ -43,7 +43,7 @@ impl Day5Opts {
 
 macro_rules! log_verbose {
     ($($arg:tt)*) => {{
-        if Day5Opts::get_opts().verbose {
+        if Day6Opts::get_opts().verbose {
             println!($($arg)*);
         }
     }};
@@ -252,9 +252,9 @@ impl Map {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    Day5Opts::set_opts(argh::from_env());
+    Day6Opts::set_opts(argh::from_env());
 
-    let content = fs::read_to_string(Day5Opts::get_opts().filename.as_str())?;
+    let content = fs::read_to_string(Day6Opts::get_opts().filename.as_str())?;
     let map = Map::read(content.as_str())?;
 
     let mut part1 = map.clone();
