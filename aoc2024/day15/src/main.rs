@@ -91,6 +91,17 @@ impl fmt::Display for Movement {
     }
 }
 
+impl Movement {
+    fn to_displacement(&self) -> (i64, i64) {
+        match self {
+            Movement::Up => (0, -1),
+            Movement::Right => (1, 0),
+            Movement::Down => (0, 1),
+            Movement::Left => (-1, 0),
+        }
+    }
+}
+
 #[derive(Clone,Debug)]
 struct ParseError(String);
 
@@ -340,7 +351,7 @@ impl Robot {
         }
     }
 
-    fn do_move(&mut self, to_move: HashSet<(usize, usize)>, dx: i64, dy: i64) -> Result<(), Box<dyn Error>> {
+    fn do_moves(&mut self, to_move: HashSet<(usize, usize)>, dx: i64, dy: i64) -> Result<(), Box<dyn Error>> {
         let mut to_move = to_move.iter().collect::<Vec<_>>();
         if dx > 0 {
             to_move.sort_by_key(|&e| -(e.0 as i64));
@@ -361,29 +372,15 @@ impl Robot {
         Ok(())
     }
 
-    fn simulate(&mut self) -> Result<(), Box<dyn Error>> {
-        log_verbose!("{self}\n");
-        for mv in self.movements.clone().iter() {
-            log_verbose!("Move {mv}:");
-            let (dx, dy) = match mv {
-                Movement::Up => {
-                    (0, -1)
-                },
-                Movement::Right => {
-                    (1, 0)
-                },
-                Movement::Down => {
-                    (0, 1)
-                },
-                Movement::Left => {
-                    (-1, 0)
-                },
-            };
+    fn apply_movement(&mut self, mv: &Movement) -> Result<(), Box<dyn Error>> {
+            let (dx, dy) = mv.to_displacement();
             let (nx, ny) = (self.pos.0 as i64 + dx, self.pos.1 as i64 + dy);
+
             // If we get out of the map, something is wrong. Just complain and continue.
             if nx < 0 || ny < 0 || ny >= self.map.len() as i64 || nx >= self.map[0].len() as i64 {
                 return Err(Box::new(SimulateError(format!("Got out of the map at {nx}, {ny}"))));
             }
+
             match self.map[ny as usize][nx as usize] {
                 Cell::Empty => {
                     log_verbose!("  (simulate) Empty at {nx},{ny}, move from {:?}", self.pos);
@@ -408,7 +405,7 @@ impl Robot {
                     let ok = ok1 && ok2;
                     log_verbose!("    (simulate) Can push: {ok}, {to_move1:?}");
                     if ok {
-                        self.do_move(to_move1, dx, dy)?;
+                        self.do_moves(to_move1, dx, dy)?;
                         self.pos = (nx as usize, ny as usize);
                     }
                 },
@@ -422,11 +419,19 @@ impl Robot {
                     let ok = ok1 && ok2;
                     log_verbose!("    (simulate) Can push: {ok}, {to_move1:?}");
                     if ok {
-                        self.do_move(to_move1, dx, dy)?;
+                        self.do_moves(to_move1, dx, dy)?;
                         self.pos = (nx as usize, ny as usize);
                     }
                 },
             }
+            Ok(())
+    }
+
+    fn simulate(&mut self) -> Result<(), Box<dyn Error>> {
+        log_verbose!("{self}\n");
+        for mv in self.movements.clone().iter() {
+            log_verbose!("Move {mv}:");
+            self.apply_movement(mv)?;
             log_verbose!("{self}\n");
         }
         Ok(())
