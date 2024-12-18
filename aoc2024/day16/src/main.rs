@@ -395,7 +395,9 @@ struct Step {
 fn main() -> Result<(), Box<dyn Error>> {
     Day16Opts::set_opts(argh::from_env());
 
+    #[cfg(debug_assertions)]
     println!("Note: build with --release for a fast execution.");
+
     let content = fs::read_to_string(Day16Opts::get_opts().filename.as_str())?;
     let maze = Maze::read(content.as_str())?;
     log_verbose!("Read:\n{maze}\n");
