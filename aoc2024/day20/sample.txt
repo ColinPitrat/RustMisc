@@ -1,0 +1,30 @@
+###############
+#...#...#.....#
+#.#.#.#.#.###.#
+#S#...#.#.#...#
+#######.#.#.###
+#######.#.#...#
+#######.#.###.#
+###..E#...#...#
+###.#######.###
+#...###...#...#
+#.#####.#.###.#
+#.#...#.#.#...#
+#.#.#.#.#.#.###
+#...#...#...###
+###############
+
+Found shortcut saving 4 from (13, 3) to (13, 5)
+Found shortcut saving 4 from (11, 5) to (11, 7)
+Found shortcut saving 4 from (11, 1) to (11, 3)
+Found shortcut saving 4 from (13, 7) to (13, 9)
+Found shortcut saving 4 from (7, 11) to (5, 11)
+Found shortcut saving 4 from (5, 13) to (3, 13)
+Found shortcut saving 4 from (9, 11) to (7, 11)
+Found shortcut saving 4 from (7, 5) to (9, 5)
+Found shortcut saving 4 from (11, 9) to (11, 11)
+Found shortcut saving 4 from (5, 3) to (7, 3)
+Found shortcut saving 4 from (3, 1) to (5, 1)
+Found shortcut saving 4 from (3, 11) to (1, 11)
+Found shortcut saving 4 from (11, 11) to (9, 11)
+
