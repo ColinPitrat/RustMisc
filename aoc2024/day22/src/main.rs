@@ -1,4 +1,5 @@
 use argh::FromArgs;
+use std::collections::{HashMap,HashSet};
 use std::error::Error;
 use std::fmt;
 use std::fs;
@@ -182,7 +183,7 @@ impl Prngs {
     // 9 so there are 19^4 = 130321 possibilities which is not huge.
     // This takes ~15 minutes without short-cutting for impossible sequences.
     // With all the short-cuts, it takes ~5 minutes.
-    fn part2(&self) -> (usize, Vec<i64>) {
+    fn part2_slow(&self) -> (usize, Vec<i64>) {
         let mut max_bananas = 0;
         let mut best_seq = Vec::new();
         let prices = self.prices(2000);
@@ -212,6 +213,33 @@ impl Prngs {
             }
         }
         (max_bananas, best_seq)
+    }
+
+    // Smarter approach: count the price for all the combinations that do exist in a single pass.
+    // Then go over all of them to find the maximum one.
+    fn part2(&self) -> (usize, Vec<i64>) {
+        let prices = self.prices(2000);
+        let mut counts = HashMap::new();
+        for this_prices in prices {
+            let mut seen = HashSet::new();
+            let (mut a, mut b, mut c, mut d) = (0, this_prices[0].1, this_prices[1].1, this_prices[2].1);
+            for i in 3..this_prices.len() {
+                (a, b, c, d) = (b, c, d, this_prices[i].1);
+                if !seen.contains(&(a,b,c,d)) {
+                    *counts.entry((a,b,c,d)).or_insert(0_usize) += this_prices[i].0;
+                    seen.insert((a,b,c,d));
+                }
+            }
+        }
+        let mut max_bananas = 0;
+        let mut best_seq = (0, 0, 0, 0);
+        for (seq, count) in counts.iter() {
+            if *count > max_bananas {
+                max_bananas = *count;
+                best_seq = *seq;
+            }
+        }
+        (max_bananas, vec!(best_seq.0, best_seq.1, best_seq.2, best_seq.3))
     }
 }
 
@@ -280,10 +308,10 @@ mod tests {
         let prngs = Prngs::read(content.as_str()).unwrap();
 
         assert_eq!(37327623, prngs.part1());
+        assert_eq!(24, prngs.part2().0);
     }
 
     // Not having this test in debug mode is not great, but it takes about 20 seconds to run!
-    #[cfg(not(debug_assertions))]
     #[test]
     fn test_part2() {
         let prngs = Prngs::read("1\n2\n3\n2024").unwrap();
