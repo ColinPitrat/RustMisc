@@ -87,6 +87,7 @@ impl Direction {
         }
     }
 }
+
 #[derive(Clone,Debug)]
 struct ParseError(String);
 
