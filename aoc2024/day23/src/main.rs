@@ -1,9 +1,8 @@
 use argh::FromArgs;
-use std::collections::{HashSet,HashMap,VecDeque};
+use std::collections::HashSet;
 use std::error::Error;
 use std::fmt;
 use std::fs;
-use std::ops::{Deref,DerefMut};
 use std::sync::{LazyLock,RwLock};
 
 #[derive(Clone, Default, FromArgs)]
@@ -57,13 +56,11 @@ impl Error for ParseError {}
 
 #[derive(Clone,Debug)]
 struct GraphBuilder {
-    vertices: HashSet<String>,
     edges: HashSet<(String, String)>,
 }
 
 impl GraphBuilder {
     fn read(content: &str) -> Result<Self, Box<dyn Error>> {
-        let mut vertices = HashSet::new();
         let mut edges = HashSet::new();
         for line in content.split('\n') {
             if line.is_empty() {
@@ -74,16 +71,15 @@ impl GraphBuilder {
                 return Err(Box::new(ParseError(format!("Unexpected number of elements, got {:?}, wanted 2 elements", elems))))
             }
             let (v1, v2) = (elems[0], elems[1]);
-            vertices.insert(v1.to_string());
-            vertices.insert(v2.to_string());
             edges.insert((v1.to_string(), v2.to_string()));
         }
-        Ok(Self{vertices, edges})
+        Ok(Self{edges})
     }
 
     /// Returns the list of components of the graph.
     /// This was a misunderstanding of the input, the graph has a single component.
     /// We're looking for fully connected components.
+    #[allow(dead_code)]
     fn components(&self) -> Vec<HashSet<String>> {
         let mut sets: Vec<HashSet<String>> = vec!();
         for (v1, v2) in self.edges.iter() {
