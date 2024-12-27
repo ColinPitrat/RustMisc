@@ -183,10 +183,12 @@ impl Prngs {
     // 9 so there are 19^4 = 130321 possibilities which is not huge.
     // This takes ~15 minutes without short-cutting for impossible sequences.
     // With all the short-cuts, it takes ~5 minutes.
+    #[allow(dead_code)]
     fn part2_slow(&self) -> (usize, Vec<i64>) {
         let mut max_bananas = 0;
         let mut best_seq = Vec::new();
         let prices = self.prices(2000);
+        let mut combis = 0;
         for i in -9i64..=9 {
             log_verbose!("i={i}");
             for j in -9i64..=9 {
@@ -202,6 +204,7 @@ impl Prngs {
                         if (i+j+k+l).abs() >= 10 || (j+k+l).abs() >= 10 || (k+l).abs() >= 10 {
                             continue
                         }
+                        combis += 1;
                         let total_price = self.compute_bananas(vec!(i, j, k, l), &prices);
                         if total_price > max_bananas {
                             log_verbose!("New best at ({i}, {j}, {k}, {l}): {total_price}");
@@ -212,6 +215,7 @@ impl Prngs {
                 }
             }
         }
+        log_verbose!("Number of combinations: {combis}");
         (max_bananas, best_seq)
     }
 
@@ -231,6 +235,7 @@ impl Prngs {
                 }
             }
         }
+        log_verbose!("Number of combinations: {}", counts.len());
         let mut max_bananas = 0;
         let mut best_seq = (0, 0, 0, 0);
         for (seq, count) in counts.iter() {
@@ -253,7 +258,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let content = fs::read_to_string(filename.as_str())?;
 
     let prngs = Prngs::read(content.as_str())?;
-    //log_verbose!("PRNGs:\n{prngs}");
 
     println!("Part 1: {}", prngs.part1());
     println!("Part 2: {}", prngs.part2().0);
