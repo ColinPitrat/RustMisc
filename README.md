@@ -49,6 +49,9 @@ A model of a rust directory with unit tests (in the code itself, allowed to test
 ## neuralnet_mnist
 A neural network coded from scratch in Rust to classify digits from the [MNIST](https://yann.lecun.com/exdb/mnist/) dataset.
 
+## project_euler
+My take at [Project Euler](https://projecteuler.net/).
+
 ## snake
 A snake game
 
