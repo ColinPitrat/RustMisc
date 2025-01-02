@@ -1,9 +1,8 @@
 use argh::FromArgs;
-use std::collections::{HashSet,HashMap,VecDeque};
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fs;
-use std::ops::{Deref,DerefMut};
 use std::sync::{LazyLock,RwLock};
 
 #[derive(Clone, Default, FromArgs)]
@@ -133,7 +132,7 @@ impl fmt::Display for Circuit {
         for (var, val) in self.values.iter() {
             writeln!(f, "{var}: {val:?}")?;
         }
-        writeln!(f, "");
+        writeln!(f, "")?;
         for formula in self.formulas.iter() {
             writeln!(f, "{formula}")?;
         }
@@ -296,6 +295,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     //    Hopefully a single one work but if multiple works, keep the list.
     //  - At the end, we should have a list of 4 permutations, just sort the names involved.
     //
+    // Alternatively, another idea is to check 2^n + 0. On my input this is enough to spot the 4
+    // bits that are wrong and each time there are 2 bits wrong: one is set which shouldn't and one
+    // is not set which should. We can deduce a list of candidate output that can be swapped and
+    // try them all.
+    //
     // If this doesn't work or finds too many solutions or not enough permutations, we may want to
     // try more sums (e.g. 1 and 2^n - 1 which tests all the carries up to 2^n).
     let test_value = 1;
@@ -304,7 +308,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     for i in 0..45 {
         circuit.reset();
         circuit.set("x", test_value << i);
-        circuit.set("y", test_value << i);
+        //circuit.set("y", test_value << i);
+        circuit.set("y", 0);
         circuit.compute();
         let (x, y, z) = (circuit.input1()?, circuit.input2()?, circuit.output()?);
         // Something is wrong with:

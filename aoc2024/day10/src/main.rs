@@ -82,6 +82,7 @@ impl Map {
         Ok(Map{cells})
     }
 
+    #[allow(dead_code)]
     fn starting_places(&self) -> Vec<(usize, usize)> {
         let mut result = vec!();
         for (y, line) in self.cells.iter().enumerate() {
@@ -172,7 +173,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let content = fs::read_to_string(Day10Opts::get_opts().filename.as_str())?;
     let map = Map::read(content.as_str())?;
-    println!("{}", map);
+    log_verbose!("{}", map);
 
     println!("Part 1: {}", map.part1());
     println!("Part 2: {}", map.part2());

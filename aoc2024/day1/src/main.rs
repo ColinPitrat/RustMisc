@@ -11,7 +11,7 @@ struct Day1Opts {
 }
 
 fn read_lists(filename: &str) -> Result<(Vec<i64>, Vec<i64>), Box<dyn Error>> {
-    println!("Reading data from '{}'", filename);
+    //println!("Reading data from '{}'", filename);
     let content = fs::read_to_string(filename)?;
 
     let mut list1 = vec!();
@@ -20,7 +20,7 @@ fn read_lists(filename: &str) -> Result<(Vec<i64>, Vec<i64>), Box<dyn Error>> {
         //println!("Read line: '{}'", line);
         // Ignore blank lines.
         if line.len() == 0 {
-            println!("Ignoring blank line: '{}'", line);
+            //println!("Ignoring blank line: '{}'", line);
             continue;
         }
 
@@ -60,8 +60,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let opts : Day1Opts = argh::from_env();
 
     let (list1, list2) = read_lists(opts.filename.as_str())?;
-    println!("Distance: {}", compute_distance(list1.clone(), list2.clone()));
-    println!("Similarity: {}", compute_similarity(list1, list2));
+    println!("Distance (part 1): {}", compute_distance(list1.clone(), list2.clone()));
+    println!("Similarity (part 2): {}", compute_similarity(list1, list2));
 
     Ok(())
 }

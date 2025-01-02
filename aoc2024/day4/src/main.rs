@@ -14,10 +14,6 @@ struct Day4Opts {
     /// verbose output
     #[argh(switch, short = 'v')]
     verbose: bool,
-
-    /// verbose output
-    #[argh(switch)]
-    use_nom: bool,
 }
 
 // A static OPTIONS used to provide access to options like 'verbose' everywhere without needing to
@@ -155,14 +151,14 @@ impl Grid {
 
     fn find_all_token(&self, token: &str) -> Result<usize, Box<dyn Error>> {
         let mut result = 0;
-        result += self.find_token("XMAS", VDirection::NONE, HDirection::RIGHT)?;
-        result += self.find_token("XMAS", VDirection::NONE, HDirection::LEFT)?;
-        result += self.find_token("XMAS", VDirection::DOWN, HDirection::NONE)?;
-        result += self.find_token("XMAS", VDirection::UP, HDirection::NONE)?;
-        result += self.find_token("XMAS", VDirection::DOWN, HDirection::RIGHT)?;
-        result += self.find_token("XMAS", VDirection::UP, HDirection::RIGHT)?;
-        result += self.find_token("XMAS", VDirection::DOWN, HDirection::LEFT)?;
-        result += self.find_token("XMAS", VDirection::UP, HDirection::LEFT)?;
+        result += self.find_token(token, VDirection::NONE, HDirection::RIGHT)?;
+        result += self.find_token(token, VDirection::NONE, HDirection::LEFT)?;
+        result += self.find_token(token, VDirection::DOWN, HDirection::NONE)?;
+        result += self.find_token(token, VDirection::UP, HDirection::NONE)?;
+        result += self.find_token(token, VDirection::DOWN, HDirection::RIGHT)?;
+        result += self.find_token(token, VDirection::UP, HDirection::RIGHT)?;
+        result += self.find_token(token, VDirection::DOWN, HDirection::LEFT)?;
+        result += self.find_token(token, VDirection::UP, HDirection::LEFT)?;
         Ok(result)
     }
 

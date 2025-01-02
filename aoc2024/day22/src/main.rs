@@ -226,7 +226,8 @@ impl Prngs {
         let mut counts = HashMap::new();
         for this_prices in prices {
             let mut seen = HashSet::new();
-            let (mut a, mut b, mut c, mut d) = (0, this_prices[0].1, this_prices[1].1, this_prices[2].1);
+            let mut a;
+            let (mut b, mut c, mut d) = (this_prices[0].1, this_prices[1].1, this_prices[2].1);
             for i in 3..this_prices.len() {
                 (a, b, c, d) = (b, c, d, this_prices[i].1);
                 if !seen.contains(&(a,b,c,d)) {

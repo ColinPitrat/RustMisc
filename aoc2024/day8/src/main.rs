@@ -211,7 +211,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     log_verbose!("Locations 1: {:?}", locations1);
     let locations2 = map.find_harmonic_nodes();
     log_verbose!("Locations 2: {:?}", locations2);
-    println!("{}", map);
+    log_verbose!("{}", map);
 
     println!("Number of locations (part 1): {:?}", locations1.len());
     println!("Number of locations (part 2): {:?}", locations2.len());
