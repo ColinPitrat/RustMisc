@@ -10,7 +10,7 @@ fn is_square(n: u64) -> bool {
 /// Computes the number of cuboids of integer side size less than n that have a shortest path
 /// (staying on faces) from a corner to the opposite one of integer length.
 /// This is a direct, naive translation of the problem statement.
-pub fn count_paths(n: u64) -> u64 {
+fn count_paths(n: u64) -> u64 {
     let mut result = 0;
     for a in 1..=n {
         for b in a..=n {
@@ -33,7 +33,8 @@ pub fn count_paths(n: u64) -> u64 {
 /// (staying on faces) from a corner to the opposite one of integer length.
 /// This is a faster version that uses a formula for counting all the paths for a given sum of two
 /// sides sizes.
-pub fn count_paths_fast(n: u64) -> u64 {
+#[allow(dead_code)]
+fn count_paths_fast(n: u64) -> u64 {
     let mut result = 0;
     for a in 1..=n {
         for b in 2..=2*a {
