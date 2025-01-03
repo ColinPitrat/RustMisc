@@ -29,6 +29,7 @@ fn inverse_mod(a: u64, p: u64) -> u64 {
 /// Returns x such that a^x % p = b.
 /// Uses baby-step giant-step algorithm:
 /// https://en.wikipedia.org/wiki/Baby-step_giant-step
+#[allow(dead_code)]
 fn log_mod(a: u64, b: u64, p: u64) -> u64 {
     let m = (p as f64).sqrt().ceil() as u64;
     let mut alphas = vec!();
