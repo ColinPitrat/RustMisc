@@ -29,7 +29,7 @@ pub fn solve(n: u64) -> u64 {
         // Enough to go up to 50.
         32000000
     };
-    for p in primes::eratosthenes(limit) {
+    for p in primes::sieve(limit) {
         let ps = p*p;
         if ps > stop_at {
             break;
