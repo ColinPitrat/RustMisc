@@ -5,3 +5,8 @@ edition = "2021"
 
 [dependencies]
 argh = "0.1.13"
+bit-set = "0.8.0"
+
+# To be able to run `perf` for profiling.
+[profile.release]
+debug = 1
