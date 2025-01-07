@@ -12,6 +12,8 @@ pub mod problem686;
 pub mod problem700;
 pub mod problem808;
 pub mod problem816;
+pub mod problem872;
+pub mod problem885;
 
 fn main() {
     options::set_opts(argh::from_env());
@@ -31,6 +33,8 @@ fn main() {
         700 => println!("Solution is {}", crate::problem700::solve(None)),
         808 => println!("Solution is {}", crate::problem808::solve(50)),
         816 => println!("Solution is {}", crate::problem816::solve(2000000)),
+        872 => println!("Solution is {}", crate::problem872::solve(10_u64.pow(17), 9_u64.pow(17))),
+        885 => println!("Solution is {}", crate::problem885::solve(18, 1123455689)),
         _ => println!("Unsolved problem {problem}"),
     }
 }

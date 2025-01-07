@@ -2,6 +2,8 @@ use bit_set::BitSet;
 
 /// Returns the list of prime numbers up to `n`.
 /// This is decently fast (<2s) up to 100 millions in release mode.
+/// Uses Eratosthenes sieve with Euler optimization:
+/// https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes
 pub fn sieve(n: u64) -> Vec<u64> {
     // Using 0x55 ensures that all the even numbers are already set to false.
     let mut s = BitSet::from_bytes(&std::iter::repeat(0x55).take((n as usize+7)/8).collect::<Vec<_>>());
