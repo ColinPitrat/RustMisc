@@ -103,7 +103,9 @@ pub fn solve_iter(n: usize) -> Result {
 /// anything (for the problem it's 10^12, but we target a generic solution) so we need to ignore
 /// numbers for which (2^k)*n+2^(k-2) is lower than N.
 struct Optim {
+    #[allow(dead_code)]
     power: u32,
+    #[allow(dead_code)]
     modulo: usize,
     start: usize,
     /// Mask is a faster alternative than modulo as modulo is a power of 2.
