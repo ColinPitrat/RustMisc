@@ -18,7 +18,7 @@ pub struct EulerOpts {
 
     /// the problem to solve
     #[argh(option)]
-    pub problem: usize,
+    pub problem: i64,
 
     /// verbose output
     #[argh(switch, short = 'v')]
