@@ -1,6 +1,9 @@
 pub mod options;
 pub mod utils;
+
+pub mod fibonacci;
 pub mod primes;
+
 pub mod problem1;
 pub mod problem2;
 pub mod problem3;
@@ -13,6 +16,7 @@ pub mod problem700;
 pub mod problem718;
 pub mod problem808;
 pub mod problem816;
+pub mod problem853;
 pub mod problem872;
 pub mod problem885;
 pub mod problem918;
@@ -33,9 +37,10 @@ fn main() {
         88 => println!("Solution is {}", crate::problem88::solve(2, 12000)),
         686 => println!("Solution is {}", crate::problem686::solve(123, 678910)),
         700 => println!("Solution is {}", crate::problem700::solve(None)),
-        718 => println!("Solution is {}", crate::problem718::solve(10_u64.pow(12))),
+        718 => println!("Solution is {}", crate::problem718::solve(10_u64.pow(14))),
         808 => println!("Solution is {}", crate::problem808::solve(50)),
         816 => println!("Solution is {}", crate::problem816::solve(2000000)),
+        853 => println!("Solution is {}", crate::problem853::solve(120, 10_u128.pow(9))),
         872 => println!("Solution is {}", crate::problem872::solve(10_u64.pow(17), 9_u64.pow(17))),
         885 => println!("Solution is {}", crate::problem885::solve(18, 1123455689)),
         918 => println!("Solution is {}", crate::problem918::solve(10_usize.pow(12))),

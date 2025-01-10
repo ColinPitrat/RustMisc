@@ -36,6 +36,15 @@ pub fn solve(n: u64) -> u64 {
     let mut sum = 0;
     for root in 2..=s {
         let square = root*root;
+        // Suggestion by ecnerwala in the forum (post solve):
+        // the is_s_number operation preserves the digit sum so the only candidates are those for
+        // which:
+        //   square % 9 != root % 9
+        // Which can only happen if root % 9 is 0 or 1 (or square % 9, but the former is easier to
+        // compute for larger number, though we don't really care here).
+        if root % 9 > 1 {
+            continue;
+        }
         if is_s_number(root, square) {
             log_verbose!("{square} is a S-number");
             sum += square;
