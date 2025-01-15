@@ -22,6 +22,7 @@ pub mod problem808;
 pub mod problem816;
 pub mod problem820;
 pub mod problem853;
+pub mod problem862;
 pub mod problem872;
 pub mod problem885;
 pub mod problem918;
@@ -51,6 +52,7 @@ fn main() {
         816 => println!("Solution is {}", crate::problem816::solve(2000000)),
         820 => println!("Solution is {}", crate::problem820::solve(10_000_000)),
         853 => println!("Solution is {}", crate::problem853::solve(120, 10_u128.pow(9))),
+        862 => println!("Solution is {}", crate::problem862::solve(12)),
         872 => println!("Solution is {}", crate::problem872::solve(10_u64.pow(17), 9_u64.pow(17))),
         885 => println!("Solution is {}", crate::problem885::solve(18, 1123455689)),
         918 => println!("Solution is {}", crate::problem918::solve(10_usize.pow(12))),
