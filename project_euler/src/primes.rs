@@ -43,9 +43,36 @@ pub fn sieve(n: u64) -> Vec<u64> {
     s.into_iter().map(|x| x as u64).collect::<Vec<u64>>()
 }
 
+pub fn is_prime(n: usize) -> bool {
+    // TODO: implement
+    if n <= 3 {
+        return n > 1;
+    }
+    if n % 6 != 1 && n % 6 != 5 {
+        return false;
+    }
+    for i in (5..(n as f64).sqrt() as usize+1).step_by(6) {
+        if n%i == 0 || n%(i+2) == 0 {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_is_prime() {
+        let primes = HashSet::from([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]);
+        for i in 0..100 {
+            assert_eq!(primes.contains(&i), is_prime(i));
+        }
+    }
 
     #[test]
     fn test_sieve() {
