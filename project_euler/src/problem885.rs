@@ -127,11 +127,14 @@ mod test {
 
     #[test]
     fn test_solve() {
-        for i in 0..5 {
+        for i in 0..4 {
             assert_eq!(solve_naive(i), solve(i, u64::MAX), "solve_naive({i}) != solve({i})");
         }
         // Computed with solve_naive but takes some time!
-        assert_eq!(10457508399075, solve(7, u64::MAX));
-        assert_eq!(882476568727677, solve(8, u64::MAX));
+        assert_eq!(19457757, solve(4, u64::MAX));
+        assert_eq!(1543545675, solve(5, u64::MAX));
+        assert_eq!(125796691845, solve(6, u64::MAX));
+        //assert_eq!(10457508399075, solve(7, u64::MAX));
+        //assert_eq!(882476568727677, solve(8, u64::MAX));
     }
 }

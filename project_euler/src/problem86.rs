@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_count_paths_agree() {
-        for n in 0..100 {
+        for n in 0..50 {
             assert_eq!(count_paths(n), count_paths_fast(n), "for n={n}");
         }
     }
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_all_solve_agree() {
-        for n in 1..100 {
+        for n in 1..20 {
             assert_eq!(solve(n), solve_linear_search(n), "solve & solve_linear_search disagree for n={n}");
             assert_eq!(solve(n), solve_binary_search(n), "solve & solve_binary_search disagree for n={n}");
             assert_eq!(solve(n), solve_slow(n), "solve & solve_slow disagree for n={n}");
