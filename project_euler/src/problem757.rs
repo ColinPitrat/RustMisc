@@ -15,6 +15,7 @@ fn solve_naive(max: i64) -> usize {
     (1..=max).filter(|&n| is_stealthy(n)).count()
 }
 
+// TODO: This is still extremely slow, find a better solution!
 pub fn solve(max: i64) -> usize {
     let mut stealthy = HashSet::new();
     'outer: for a in 1..=((2.*max as f64).sqrt() as i64 + 1) {

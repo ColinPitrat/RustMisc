@@ -3,6 +3,7 @@ use itertools::iproduct;
 use std::collections::HashSet;
 use std::time::Instant;
 
+// TODO: This is still extremely slow, find a better solution!
 pub fn solve(n: usize) -> usize {
     let squares = (1..=((n as f64).sqrt() as usize))
         .map(|x| x*x)
