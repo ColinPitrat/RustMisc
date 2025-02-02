@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 argh = "0.1.13"
 bit-set = "0.8.0"
+itertools = "0.14.0"
+ndarray = "0.16.1"
 
 # To be able to run `perf` for profiling.
 [profile.release]
