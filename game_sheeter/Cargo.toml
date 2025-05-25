@@ -1,0 +1,9 @@
+[package]
+name = "game_sheeter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+argh = "0.1.13"
+enigo = "0.3.0"
+screenshots = "0.8.10"
