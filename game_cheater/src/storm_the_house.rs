@@ -1,4 +1,5 @@
-use argh::FromArgs;
+use crate::options;
+
 use enigo::{
     Button, Coordinate,
     Direction::{Click, Press, Release},
@@ -8,18 +9,6 @@ use screenshots::image::Rgba;
 use screenshots::Screen;
 use std::thread;
 use std::time;
-
-#[derive(Clone, Default, FromArgs)]
-/// A clicker for Storm the House (on crazygames.com)
-pub struct CommandLineOptions {
-    /// which screen to catpure from
-    #[argh(option, default="0")]
-    pub screen: usize,
-
-    /// verbose output
-    #[argh(switch, short='v')]
-    pub verbose: bool,
-}
 
 struct Region {
     x1: i32,
@@ -36,16 +25,6 @@ impl Region {
             y1: y-radius,
             x2: x+radius,
             y2: y+radius,
-            frames,
-        }
-    }
-
-    fn rect(x: i32, y: i32, width: i32, height: i32, frames: i32) -> Region {
-        Region{
-            x1: x,
-            y1: y,
-            x2: x+width,
-            y2: y+height,
             frames,
         }
     }
@@ -119,7 +98,7 @@ impl GameState {
     }
 }
 
-fn play_once(screen: &Screen, enigo: &mut Enigo, state: &mut GameState, options: &CommandLineOptions) {
+fn play_once(screen: &Screen, enigo: &mut Enigo, state: &mut GameState, options: &options::CommandLineOptions) {
     state.next_frame();
 
     let shop_discriminator_ref = Rgba::from([0xcb, 0xcb, 0xcb, 0xff]);
@@ -197,23 +176,13 @@ fn play_once(screen: &Screen, enigo: &mut Enigo, state: &mut GameState, options:
                 println!("Game mode!");
             }
             // Game mode
-            // If near the end of the round, avoid shooting in the "hire gunman" area as this may
-            // lead to buying a gunman if the switch to the shop occurs just at that time.
-            /*
-             * Doesn't work, not sure why but there's a better way
-            let day_end_discriminator = image.get_pixel(750, 525);
-            if day_end_discriminator.0[3] <= 69 {
-                println!("Frame {} - Day end protection triggers: {day_end_discriminator:?}", state.frame);
-                state.avoid_region(Region::rect(850, 1180, 190, 320, 10))
-            }
-            */
             let black = Rgba::from([0, 0, 0, 0xff]);
             // We divide everything by 2 because somehow the area seen in 1920x1200 despite the resolution
             // being 3840x2400.
             let warzone = screen.capture_area(750/2, 1200/2, 1650/2, 620/2).unwrap();
-            let shop_warzone_discriminator = warzone.get_pixel(1440, 1255);
-            let shop_warsone_discriminator_ref = Rgba::from([0xe7, 0x13, 0x0d, 0xff]);
-            if shop_warzone_discriminator.eq(&shop_warsone_discriminator_ref) {
+            let shop_warzone_discriminator = warzone.get_pixel(1440-750, 1255-1200);
+            let shop_warzone_discriminator_ref = Rgba::from([0xe7, 0x13, 0x0d, 0xff]);
+            if shop_warzone_discriminator.eq(&shop_warzone_discriminator_ref) {
                 // We switched to the shop since previous screenshot, bail out!
                 return
             }
@@ -260,8 +229,7 @@ fn play_once(screen: &Screen, enigo: &mut Enigo, state: &mut GameState, options:
     //enigo.text("hello world");
 }
 
-fn main() {
-    let options : CommandLineOptions = argh::from_env();
+pub fn play_game(options: &options::CommandLineOptions) {
     let screen = Screen::all().unwrap()[options.screen];
     let mut enigo = Enigo::new(&Settings::default()).unwrap();
 
