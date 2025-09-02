@@ -1,0 +1,11 @@
+[package]
+name = "hilbert_curve"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+argh = "0.1.13"
+glib = "0.21.1"
+gtk = "0.18.2"
+plotters = "0.3.7"
+plotters-cairo = "0.8.0"
