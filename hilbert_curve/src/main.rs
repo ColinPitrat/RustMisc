@@ -1,10 +1,34 @@
 use argh::FromArgs;
+use derive_more::{Display,Error};
 use plotters::prelude::*;
 use std::process::Command;
 
 #[derive(FromArgs)]
 #[argh(description="Draw a space filling Hilbert curve")]
 struct Args {
+#[argh(subcommand)]
+    subcommand: Subcommand,
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand)]
+enum Subcommand {
+    Hilbert(DrawCurve),
+    Garden(DrawGarden),
+}
+
+impl Subcommand {
+    fn run(self) -> Result<(), Box<dyn std::error::Error>> {
+        match self {
+            Subcommand::Hilbert(x) => draw_hilbert_curves(x),
+            Subcommand::Garden(x) => draw_garden(x),
+        }
+    }
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand, name="hilbert", description="Draw a space filling Hilbert curve")]
+struct DrawCurve {
   #[argh(option, short='o', description="order of the Hilbert curve to draw")]
   order: u32,
 
@@ -13,6 +37,67 @@ struct Args {
 
   #[argh(option, short='h', default="1024", description="height of the picture")]
   height: u32,
+
+  #[argh(switch, short='v', description="verbose output")]
+  verbose: bool,
+}
+
+#[derive(Debug,Display)]
+#[display("{:?}", plants)]
+struct Plants {
+    plants: Vec<(char, u32)>,
+}
+
+#[derive(Debug, Display, PartialEq, Eq, Error)]
+struct ParsePlantError {
+    message: String
+}
+
+#[derive(Debug, Display, PartialEq, Eq, Error)]
+struct NotEnoughPlantsError;
+
+impl ParsePlantError {
+    fn new(message: String) -> Self {
+        ParsePlantError { message }
+    }
+}
+
+impl std::str::FromStr for Plants {
+    type Err = ParsePlantError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let plants = value.split(',')
+            .map(|s| {
+                let (kind_str, nb_str) = s.split_once(':').ok_or(ParsePlantError::new(format!("Invalid plant '{s}'")))?;
+                let nb = nb_str.parse::<u32>().map_err(|_| ParsePlantError::new(format!("Invalid number '{nb_str}'")))?;
+                if kind_str.len() != 1 {
+                    return Err(ParsePlantError::new(format!("Invalid kind '{kind_str}'")));
+                }
+                let kind = kind_str.chars().next().ok_or(ParsePlantError::new(format!("Invalid kind '{kind_str}'")))?;
+                Ok((kind, nb))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Plants { plants })
+    }
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand, name="garden", description="Draw a garden")]
+struct DrawGarden {
+  #[argh(option, short='W', default="1024", description="width of the picture in pixels")]
+  pic_width: u32,
+
+  #[argh(option, short='H', default="1024", description="height of the picture in pixels")]
+  pic_height: u32,
+
+  #[argh(option, short='w', default="10", description="width of the garden")]
+  width: u32,
+
+  #[argh(option, short='h', default="10", description="height of the garden")]
+  height: u32,
+
+  #[argh(option, short='p', description="plants")]
+  plants: Plants,
 
   #[argh(switch, short='v', description="verbose output")]
   verbose: bool,
@@ -93,8 +178,7 @@ fn show_hilbert_curve(order: u32, width: u32, height: u32, verbose: bool) -> Res
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args : Args = argh::from_env();
+fn draw_hilbert_curves(args: DrawCurve) -> Result<(), Box<dyn std::error::Error>> {
     if args.verbose {
         println!("Computing curves for orders from 0 to {}", args.order);
     }
@@ -103,20 +187,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         show_hilbert_curve(order, args.width, args.height, args.verbose)?;
     }
 
-/*
-    // This was an attempt to use plotters crate with a GTK display but I didn't manage to make it
-    // work.
-    let application = gtk::Application::new(
-        Some("Hilbert space-filling curve"),
-        Default::default(),
-    );
-
-    application.connect_activate(|app| {
-        let win = window::Window::new(app);
-        win.show();
-    });
-
-    application.run();
-*/
     Ok(())
+}
+
+fn draw_garden(args: DrawGarden) -> Result<(), Box<dyn std::error::Error>> {
+    if args.verbose {
+        println!("Garden size: {}x{}", args.width, args.height);
+        println!("Plants: {}", args.plants);
+    }
+    let order = (((std::cmp::max(args.width, args.height)-1) as f32).log2() as u32) + 1;
+    let mut total_count = 0;
+    let mut plant_count = 0;
+    let mut plant_idx = 0;
+    let filename = format!("/tmp/garden.png");
+    let mut root = BitMapBackend::new(filename.as_str(), (args.pic_width, args.pic_height));
+    let (w, h) = ((args.pic_width / args.width) as i32, (args.pic_height / args.height) as i32);
+
+    let colors = [
+        RGBColor(255, 0, 0), RGBColor(0, 255, 0), RGBColor(0, 0, 255),
+        RGBColor(255, 255, 0), RGBColor(255, 0, 255), RGBColor(0, 255, 255),
+        RGBColor(127, 0, 0), RGBColor(0, 127, 0), RGBColor(0, 0, 127),
+        RGBColor(127, 127, 0), RGBColor(127, 0, 127), RGBColor(0, 127, 127),
+        RGBColor(255, 127, 0), RGBColor(255, 0, 127),
+        RGBColor(127, 255, 0), RGBColor(127, 0, 255),
+        RGBColor(0, 255, 127), RGBColor(0, 127, 255),
+    ];
+
+    let margin = 1;
+    let mut prev: Option<(i32, i32)> = None;
+    for p in hilbert_points(order) {
+        let (x, y) = (p.0 as i32 * w, p.1 as i32 * h);
+        if p.0 >= args.width || p.1 >= args.height {
+            if let Some(p1) = prev {
+                root.draw_line((p1.0 + w/2, p1.1 + h/2), (x + w/2, y + h/2), &WHITE)?;
+            }
+            prev = Some((x, y));
+            continue
+        }
+        if plant_idx >= args.plants.plants.len() {
+            return Err(Box::new(NotEnoughPlantsError));
+        }
+        if plant_count >= args.plants.plants[plant_idx].1 {
+            plant_count = 1;
+            plant_idx += 1;
+            if plant_idx >= args.plants.plants.len() {
+                return Err(Box::new(NotEnoughPlantsError));
+            }
+        } else {
+            plant_count += 1;
+        }
+        total_count += 1;
+        if args.verbose {
+            println!("{total_count}: {plant_count}: {:?} -> {}", p, args.plants.plants[plant_idx].0);
+        }
+        root.draw_rect((x+margin, y+margin), (x+w-margin, y+h-margin), &colors[plant_idx%colors.len()], true)?;
+        if let Some(p1) = prev {
+            root.draw_line((p1.0 + w/2, p1.1 + h/2), (x + w/2, y + h/2), &WHITE)?;
+        }
+        prev = Some((x, y));
+    }
+
+    root.present()?;
+
+    Command::new("qiv")
+        .arg(filename.clone())
+        .output()
+        .expect("failed to execute qiv");
+
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args : Args = argh::from_env();
+    args.subcommand.run()
 }
