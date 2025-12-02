@@ -124,6 +124,8 @@ impl Dial {
 }
 
 impl Instruction {
+    // Useful for testing.
+    #[allow(dead_code)]
     fn new(dir: Direction, steps: usize) -> Instruction {
         Instruction { dir, steps }
     }
@@ -157,8 +159,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut dial = Dial::new();
     let instructions = read_instructions(opts.filename.as_str())?;
 
-    println!("Day 1: {}", dial.count_zeroes(&instructions));
-    println!("Day 2: {}", dial.count_crossing_zeroes(&instructions));
+    println!("Part 1: {}", dial.count_zeroes(&instructions));
+    println!("Part 2: {}", dial.count_crossing_zeroes(&instructions));
 
     Ok(())
 }
