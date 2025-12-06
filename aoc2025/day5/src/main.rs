@@ -3,8 +3,8 @@ use std::error::Error;
 use std::fs;
 
 #[derive(FromArgs)]
-/// Solve day 4 of Advent of Code 2025.
-struct Day4Opts {
+/// Solve day 5 of Advent of Code 2025.
+struct Day5Opts {
     /// the file to use as input
     #[argh(option)]
     filename: String,
@@ -135,7 +135,7 @@ impl Database {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let opts : Day4Opts = argh::from_env();
+    let opts : Day5Opts = argh::from_env();
     let database = Database::load(opts.filename.as_str())?;
 
     println!("Part 1: {}", database.count_fresh());
