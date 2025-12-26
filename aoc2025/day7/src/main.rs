@@ -109,6 +109,7 @@ impl Grid {
         self.content[0].iter().position(|c| *c == Cell::Start).unwrap()
     }
 
+    #[allow(dead_code)]
     fn print_at(&self, at: (usize, usize)) {
         let mut grid = self.clone();
         let (i, j) = at;
